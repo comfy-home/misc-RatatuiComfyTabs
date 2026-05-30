@@ -10,7 +10,7 @@ categories = ["command-line-interface"]
 homepage = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
 repository = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
 readme = "README.md"
-rust-version = "1.85"
+rust-version = "1.95"
 exclude = ["screenshots/"]
 
 [package.metadata]
