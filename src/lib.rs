@@ -1,18 +1,11 @@
-//! A tab navigation widget for [Ratatui](https://ratatui.rs) with bordered boxes and rounded corners.
+//! Copyright © 2026 ComfyHome™
+//! All rights reserved.
 //!
-//! Each tab renders as an individual bordered box. The active tab opens into the content
-//! below via rounded junction corners while inactive tabs maintain a continuous baseline.
+//! Licensed under the ComfyGit SA-PS License
 //!
-//! # Example
-//!
-//! ```rust
-//! use ratatui::style::{Color, Style};
-//! use tui_tabs::TabNav;
-//!
-//! let widget = TabNav::new(&["Files", "Search", "Settings"], 0)
-//!     .highlight_style(Style::new().fg(Color::Cyan))
-//!     .border_style(Style::new().fg(Color::DarkGray));
-//! ```
+//! For details, see the LICENSE file in the repository root.
+
+
 
 use ratatui_core::{
     buffer::Buffer,
