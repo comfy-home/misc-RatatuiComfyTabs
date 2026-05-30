@@ -7,7 +7,7 @@
 //!
 //! ```rust
 //! use ratatui::style::{Color, Style};
-//! use tui_tabs::TabNav;
+//! use ratatui_comfy_tabs::TabNav;
 //!
 //! let widget = TabNav::new(&["Files", "Search", "Settings"], 0)
 //!     .highlight_style(Style::new().fg(Color::Cyan))
