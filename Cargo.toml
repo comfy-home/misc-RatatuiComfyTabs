@@ -1,0 +1,29 @@
+[package]
+name = "ratatui-comfy-tabs"
+authors = ["ComfyHome™ <dev@comfyhome.io>"]
+version = "0.0.1"
+edition = "2024"
+description = "An advanced tab navigation widget for Ratatui."
+license-file = "LICENSE.md"
+keywords = ["tui", "ratatui", "tabs", "widget", "comfy"]
+categories = ["command-line-interface"]
+homepage = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
+repository = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
+readme = "README.md"
+rust-version = "1.85"
+exclude = ["screenshots/"]
+
+[package.metadata]
+alt_repositary = "https://github.com/comfy-home/misc-RatatuiComfyTabs"
+attributions = ["https://github.com/jharsono"]
+attrib_timeline = ["ratatui-comfy-tabs v0.0.1 is based on ~300 LoC of tui-toaster v0.1.1"]
+attrib_link = ["https://github.com/jharsono/tui-tabs"]
+
+[workspace]
+
+[dependencies]
+ratatui-core = "0.1.0"
+
+[dev-dependencies]
+color-eyre = "0.6"
+ratatui = { version = "0.30", features = ["crossterm"] }
