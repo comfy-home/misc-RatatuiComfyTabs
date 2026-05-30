@@ -1,8 +1,8 @@
-# tui-tabs
+# ratatui-comfy-tabs
 
-A tab navigation widget for [Ratatui](https://ratatui.rs) with individually bordered boxes and rounded corners.
+An advanced tab navigation widget for [Ratatui](https://ratatui.rs) with individually bordered boxes and rounded corners.
 
-![demo](https://raw.githubusercontent.com/jharsono/tui-tabs/main/screenshots/demo.gif)
+![demo](assets/demo.gif)
 
 ## Features
 
@@ -11,25 +11,27 @@ A tab navigation widget for [Ratatui](https://ratatui.rs) with individually bord
 - Continuous baseline spans the full widget width
 - Optional indicator symbol next to the active tab label
 - Builder API following Ratatui conventions
+- Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
 
 ```bash
-cargo add tui-tabs
+cargo add ratatui-comfy-tabs
 ```
 
 Or add it manually to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tui-tabs = "0.1"
+ratatui-comfy-tabs = "0.1"
+ratatui = "0.30"
 ```
 
 ## Usage
 
 ```rust
 use ratatui::style::{Color, Style};
-use tui_tabs::TabNav;
+use ratatui_comfy_tabs::TabNav;
 
 let widget = TabNav::new(&["Files", "Search", "Settings"], 0)
     .highlight_style(Style::new().fg(Color::Cyan))
@@ -54,19 +56,17 @@ The widget requires exactly 3 rows of height (top border, label row, baseline).
 ```bash
 cargo run --example basic        # Static render, press any key to exit
 cargo run --example interactive  # Arrow keys to navigate, q to quit
+cargo run --example demo         # Styled multi-tab demo
 ```
 
 ## License
 
-Licensed under either of
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT License ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
-
-at your option.
+Version 0.1.0 and above is licensed under the Ratatui-Comfy-Tabs Project License — SA-PS:DA (v1.0). See [LICENSE.md](LICENSE.md).
 
 ## Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Attribution
+
+ratatui-comfy-tabs v0.0.1 uses approx 350 LoC of `tui-tabs` by [jharsono](https://github.com/jharsono), therefore, v0.0.1 inherits its license. Lineage and upstream references are recorded in `Cargo.toml` under `[package.metadata]`.
