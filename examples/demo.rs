@@ -5,6 +5,7 @@
 
 use ratatui::{
     crossterm::event::{self, Event, KeyCode},
+    layout::Alignment,
     prelude::{Buffer, Constraint, Layout, Rect, Stylize, Widget},
     style::{Color, Style},
     symbols::border,
@@ -125,6 +126,70 @@ impl App {
             .max()
             .unwrap_or(8)
     }
+
+    fn shortcut_footer_text(&self) -> String {
+        let mode_label = match self.mode {
+            DemoMode::Horizontal => "horizontal",
+            DemoMode::Vertical => "vertical",
+        };
+        let indicator_label = if self.show_indicator { "on" } else { "off" };
+        let nav_keys = match self.mode {
+            DemoMode::Horizontal => "h/l or ←/→",
+            DemoMode::Vertical => "j/k or ↑/↓",
+        };
+
+        format!(
+            "{nav_keys} tabs | Tab cycle | M mode ({mode_label}) | I indicator ({indicator_label}) | q quit"
+        )
+    }
+
+    fn content_block<'a>(&self, title: &'a str, border: Color, bg: Color) -> Block<'a> {
+        let mut block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::new().fg(border))
+            .style(Style::new().fg(Color::White).bg(bg));
+
+        if self.mode == DemoMode::Vertical {
+            let mut border_set = border::ROUNDED;
+            border_set.top_left = "─";
+            block = block
+                .borders(Borders::TOP | Borders::RIGHT | Borders::BOTTOM)
+                .border_set(border_set)
+                .title(format!(" {} ", title))
+                .title_alignment(Alignment::Left);
+        } else {
+            block = block.title(format!(" {} ", title));
+        }
+
+        block
+    }
+
+    fn render_content_pane(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        border: Color,
+        bg: Color,
+        body: &str,
+    ) {
+        let block = self.content_block(TABS[self.selected], border, bg);
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        if self.mode == DemoMode::Vertical {
+            let style = Style::new().fg(border);
+            buf[(area.x, area.y)].set_symbol("─").set_style(style);
+        }
+
+        let [main, footer] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(inner);
+
+        Paragraph::new(body).render(main, buf);
+        self.shortcut_footer_text()
+            .dim()
+            .into_centered_line()
+            .render(footer, buf);
+    }
 }
 
 impl Widget for &App {
@@ -134,21 +199,14 @@ impl Widget for &App {
 
         Block::new().style(Style::new().bg(bg)).render(area, buf);
 
-        let mode_label = match self.mode {
-            DemoMode::Horizontal => "horizontal",
-            DemoMode::Vertical => "vertical",
-        };
-        let indicator_label = if self.show_indicator { "on" } else { "off" };
-
         let [header, body] =
             Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
 
-        format!(
-            "comfy-tabs demo — mode: {mode_label} (M) | indicator: {indicator_label} (I) | q quit"
-        )
-        .dim()
-        .into_centered_line()
-        .render(header, buf);
+        "ratatui-comfy-tabs demo"
+            .bold()
+            .fg(Color::LightBlue)
+            .into_centered_line()
+            .render(header, buf);
 
         match self.mode {
             DemoMode::Horizontal => self.render_horizontal(body, buf, bg, border),
@@ -164,14 +222,13 @@ impl App {
 
         self.styled_tab_nav(TABS).render(tabs, buf);
 
-        Paragraph::new(format!("Selected: {}", TABS[self.selected]))
-            .block(
-                Block::bordered()
-                    .title(format!(" {} ", TABS[self.selected]))
-                    .border_style(Style::new().fg(border))
-                    .style(Style::new().fg(Color::White).bg(bg)),
-            )
-            .render(content, buf);
+        self.render_content_pane(
+            content,
+            buf,
+            border,
+            bg,
+            &format!("Selected: {}", TABS[self.selected]),
+        );
     }
 
     fn render_vertical(&self, area: Rect, buf: &mut Buffer, bg: Color, border: Color) {
@@ -182,18 +239,12 @@ impl App {
         let label_refs: Vec<&str> = self.vertical_labels.iter().map(String::as_str).collect();
         self.styled_tab_nav(&label_refs).render(tabs, buf);
 
-        let mut border_set = border::ROUNDED;
-        border_set.top_left = "─";
-
-        Paragraph::new(format!("Selected: {}", TABS[self.selected]))
-            .block(
-                Block::default()
-                    .borders(Borders::TOP | Borders::RIGHT | Borders::BOTTOM)
-                    .border_set(border_set)
-                    .title(format!(" {} ", TABS[self.selected]))
-                    .border_style(Style::new().fg(border))
-                    .style(Style::new().fg(Color::White).bg(bg)),
-            )
-            .render(content, buf);
+        self.render_content_pane(
+            content,
+            buf,
+            border,
+            bg,
+            &format!("Selected: {}", TABS[self.selected]),
+        );
     }
 }
