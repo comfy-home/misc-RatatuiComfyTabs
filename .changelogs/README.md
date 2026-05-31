@@ -2,6 +2,144 @@
 
 Newest archived changelogs first. When multiple archived files represent the same version, only the newest archive is included here.
 
+## Changelog `v0.3.3` <sup><div align="end">🗓️ 2026-05-31</div></sup>
+
+### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
+
+<sup>💬 Intro:</sup>  
+<sup>_v0.3.3 is the very first public release of ratatui-comfy-tabs. Here's what it brings..._</sup>  
+
+#### **1. &nbsp;&nbsp;&nbsp;Vertical tab rails — `TabOrientation::Vertical`, multi-line labels, and `vertical_label()` for stacked single-character rows; active tab opens toward content on the right.**
+#### **2. &nbsp;&nbsp;&nbsp;Overflow that scales — `OverflowPolicy::Truncate` (default) or `Scroll` with `‹` / `›` / `…` affordances; `TabNavState::scroll_offset` drives a sliding window when tabs do not fit.**
+#### **3. &nbsp;&nbsp;&nbsp;Geometry you can trust — `tab_rects()`, `tab_index_at()`, and `wheel_hover()` share the same layout math as rendering; optional `tab_widths()` / `tab_heights()` overrides fix hit-target drift (ComfyGit’s main pain point with `tui-tabs`).**
+#### **4. &nbsp;&nbsp;&nbsp;Unicode-aware sizing — label width uses `unicode-width` display width (CJK and wide glyphs count correctly).**
+#### **5. &nbsp;&nbsp;&nbsp;StatefulWidget + navigation — `TabNavState` with `select_direction`, `ensure_selected_visible`, `TabAxis` / `TabDirection` helpers, and keyboard-friendly scroll helpers.**
+#### **6. &nbsp;&nbsp;&nbsp;Mouse input — wheel tab cycling (`handle_mouse_wheel`, touchpad axis mapping via `TabWheelDirection::from_axes`) and click-to-select (`handle_mouse_click`); both opt-out via `.mouse_wheel()` / `.mouse_click()`.**
+#### **7. &nbsp;&nbsp;&nbsp;Layout polish — CSS-like `TabMargin` and `TabPadding`, `TabBarEnd` baseline caps (`NoEnd` / `Sqr` / `Rnd`), `tab_border::Rnd` or `tab_border::Sqr` via `border_set`, optional indicator, and orientation-specific defaults.**
+#### **8. &nbsp;&nbsp;&nbsp;Production-ready crate — split modules (`config`, `nav`, `state`, `layout`, `render`), 44+ tests, interactive `demo` example, `ratatui-core` only (no terminal backend in the library).**
+
+<sub>...  🎉 Enjoy!</sub>
+
+<br>
+
+### 🧩 Features
+
+* enhance demo application with new tab navigation features including overflow handling and tab width toggling <sub><sup><sup>_fa3948a_</sup></sup></sub>
+
+* introduce tab navigation state management with overflow handling and directional selection capabilities <sub><sup><sup>_9147066_</sup></sup></sub>
+
+* add mouse wheel support and enhance default app configuration in demo application <sub><sup><sup>_1833939_</sup></sup></sub>
+
+* implement tab configuration structures including margins, padding, orientation, and overflow policies <sub><sup><sup>_499c86a_</sup></sup></sub>
+
+* add vertical label conversion function to transform single-line text into a vertical stack <sub><sup><sup>_3bb8c4c_</sup></sup></sub>
+
+* implement tab layout management with effective margins, padding, and viewport calculations <sub><sup><sup>_42ad5f4_</sup></sup></sub>
+
+* add TabNav structure for enhanced tab navigation with customizable styles, overflow policies, and state management <sub><sup><sup>_7bfdbe8_</sup></sup></sub>
+
+* implement TabNav rendering logic with horizontal and vertical layouts, including overflow handling and customizable styles <sub><sup><sup>_ff3030b_</sup></sup></sub>
+
+* introduce TabNavState for managing tab selection and scroll state, enhancing tab navigation functionality <sub><sup><sup>_74f4059_</sup></sup></sub>
+
+* add mouse wheel tab switching functionality to TabNavState, enhancing user navigation experience <sub><sup><sup>_6e17ecf_</sup></sup></sub>
+
+* enhance mouse wheel navigation in demo app by implementing mouse capture and refined handling for horizontal and vertical tab scrolling <sub><sup><sup>_ad6810d_</sup></sup></sub>
+
+* add from_axes method to TabWheelDirection for improved tab switching based on scroll orientation <sub><sup><sup>_4515edb_</sup></sup></sub>
+
+* implement wheel_hover method in TabNav for improved mouse wheel tab switching functionality <sub><sup><sup>_2ba7482_</sup></sup></sub>
+
+* enhance demo app functionality by adding mouse click handling and command recording for user interactions <sub><sup><sup>_0abc168_</sup></sup></sub>
+
+* add mouse click support for tab selection in TabNav, enabling user interaction with visible tabs <sub><sup><sup>_fe6876c_</sup></sup></sub>
+
+* implement handle_mouse_click method in TabNavState for tab selection via mouse clicks, enhancing user interaction with tab navigation <sub><sup><sup>_9d3550b_</sup></sup></sub>
+
+* introduce unified border-set names for TabNav with Rnd and Sqr aliases <sub><sup><sup>_e821bdc_</sup></sup></sub>
+
+### 🔧 Maintenance
+
+* CG app version bump to v0.3.0 <sub><sup><sup>_9b804a4_</sup></sup></sub>
+
+* add unicode-width dependency to enhance text handling in tab navigation <sub><sup><sup>_464f772_</sup></sup></sub>
+
+* update license information and enhance README description for clarity <sub><sup><sup>_377222b_</sup></sup></sub>
+
+* CG app version bump to v0.3.1 <sub><sup><sup>_7ecb7fd_</sup></sup></sub>
+
+* CG app version bump to v0.3.2 <sub><sup><sup>_5e9ba13_</sup></sup></sub>
+
+* CG app version bump to v0.3.3 <sub><sup><sup>_ff9ea02_</sup></sup></sub>
+
+* update demo.gif to reflect recent design changes <sub><sup><sup>_9032cd1_</sup></sup></sub>
+
+* replace demo.gif with updated version to align with recent design modifications <sub><sup><sup>_58faaba_</sup></sup></sub>
+
+* update demo.gif <sub><sup><sup>_0f1c768_</sup></sup></sub>
+
+* remove dupl license from Cargo.toml to streamline project configuration <sub><sup><sup>_096a342_</sup></sup></sub>
+
+### ℹ️ Documentation
+
+* add overflow handling and Unicode-aware label width to tab navigation <sub><sup><sup>_dac1350_</sup></sup></sub>
+
+* update README to clarify mouse wheel event handling and provide code examples for improved tab navigation functionality <sub><sup><sup>_47908ce_</sup></sup></sub>
+
+* update README to include mouse click tab selection details and usage examples for TabNavState <sub><sup><sup>_ed6033e_</sup></sup></sub>
+
+* expand README with detailed crate roadmap and usage instructions for TabNav features <sub><sup><sup>_d05f7ea_</sup></sup></sub>
+
+* update README to reflect changes in border_set and tab_bar_end options for TabNav <sub><sup><sup>_254f3ad_</sup></sup></sub>
+
+### 🎨 Visuals
+
+* refine code formatting and improve readability in demo application, particularly in tab navigation logic <sub><sup><sup>_fd4cb12_</sup></sup></sub>
+
+### ♻️ Refactor
+
+* streamline tab management structures by removing unused components and optimizing layout definitions <sub><sup><sup>_57119e4_</sup></sup></sub>
+
+* simplify mouse position checking in TabNavState by replacing Position with wheel_hover method for improved clarity and functionality <sub><sup><sup>_2a0bf7e_</sup></sup></sub>
+
+* clean up formatting and improve readability in demo.rs by adjusting line breaks and spacing <sub><sup><sup>_ece6a45_</sup></sup></sub>
+
+* reorganize imports in render.rs for improved clarity and consistency <sub><sup><sup>_d71d7e7_</sup></sup></sub>
+
+* reorganize and simplify test functions in tests.rs for better readability and maintainability <sub><sup><sup>_60edeb2_</sup></sup></sub>
+
+* enhance footer segment handling in demo.rs by introducing new functions for wrapping and segment management <sub><sup><sup>_d491c24_</sup></sup></sub>
+
+* simplify border and tab bar end handling in demo.rs by renaming enum variants for clarity <sub><sup><sup>_74bd1c3_</sup></sup></sub>
+
+* rename enum variant in TabBarEnd for improved clarity <sub><sup><sup>_8270627_</sup></sup></sub>
+
+* update border_set in TabNav to use crate::tab_border::Rnd for consistency <sub><sup><sup>_e1238be_</sup></sup></sub>
+
+* update TabBarEnd variants to use Sqr for horizontal and vertical tab bar ends <sub><sup><sup>_311ef0a_</sup></sup></sub>
+
+* update TabNav to use Sqr for border_set and TabBarEnd in tests <sub><sup><sup>_7c9b2eb_</sup></sup></sub>
+
+### 🧪 Tests
+
+* add comprehensive tests for TabNav rendering, margin, padding, and overflow behavior <sub><sup><sup>_ed0cf4f_</sup></sup></sub>
+
+* add unit tests for TabWheelDirection and wheel_hover functionality to validate tab navigation behavior <sub><sup><sup>_bea7767_</sup></sup></sub>
+
+* add unit tests for mouse click interactions in TabNav, verifying tab selection behavior and handling of disabled state <sub><sup><sup>_d50f7e2_</sup></sup></sub>
+
+### 📝 Other
+
+* Merge pull request #9 (via ComfyGit) <sub><sup><sup>_48ac9d7_</sup></sup></sub>
+
+* Merge pull request #10 (via ComfyGit) <sub><sup><sup>_89a4139_</sup></sup></sub>
+
+* Merge pull request #11 (via ComfyGit) <sub><sup><sup>_eb4f042_</sup></sup></sub>
+
+* Merge pull request #12 (via ComfyGit) <sub><sup><sup>_eb8911b_</sup></sup></sub>
+
+---
+
 ## Changelog `v0.2.3` <sup><div align="end">🗓️ 2026-05-31</div></sup>
 
 ### 🧩 Features
