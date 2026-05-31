@@ -5,7 +5,7 @@
 //!
 //! For details, see the LICENSE file in the repository root.
 
-use ratatui_core::layout::Rect;
+use ratatui_core::layout::{Position, Rect};
 use ratatui_core::style::Style;
 use ratatui_core::symbols;
 
@@ -303,5 +303,25 @@ impl<'a> TabNav<'a> {
     /// Width of the vertical tab rail (widest tab) with the current padding.
     pub fn vertical_rail_width(&self) -> u16 {
         vertical_rail_width(self)
+    }
+
+    /// Whether a pointer position should receive mouse wheel tab switching.
+    ///
+    /// True when `position` lies inside `strip_area` or any visible [`tab_rects`](Self::tab_rects).
+    pub fn wheel_hover(
+        &self,
+        strip_area: Rect,
+        scroll_offset: usize,
+        mouse_column: u16,
+        mouse_row: u16,
+    ) -> bool {
+        let position = Position::new(mouse_column, mouse_row);
+        if strip_area.contains(position) {
+            return true;
+        }
+
+        self.tab_rects_with_scroll(strip_area, scroll_offset)
+            .iter()
+            .any(|rect| rect.contains(position))
     }
 }
