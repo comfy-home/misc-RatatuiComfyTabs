@@ -44,7 +44,10 @@ impl TabMargin {
 
     /// Vertical strip inset: `margin: <top> <bottom>` (rows).
     pub const fn vertical(top: u16, bottom: u16) -> Self {
-        Self { start: top, end: bottom }
+        Self {
+            start: top,
+            end: bottom,
+        }
     }
 
     /// Default vertical inset: `margin: 0 0` (same as [`TabMargin::ZERO`]).
@@ -130,7 +133,10 @@ pub enum TabOrientation {
 /// assert_eq!(vertical_label("Hi"), "H\ni");
 /// ```
 pub fn vertical_label(text: &str) -> String {
-    text.chars().map(|c| c.to_string()).collect::<Vec<_>>().join("\n")
+    text.chars()
+        .map(|c| c.to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Tab navigation rendered as individually bordered boxes.
@@ -417,12 +423,7 @@ fn primary_tab_size(nav: &TabNav<'_>, index: usize, label: &str, pad: TabPadding
 }
 
 /// `(offset, size)` pairs along the strip flow axis for tabs that fit in `[start, end)`.
-fn compute_tab_spans(
-    nav: &TabNav<'_>,
-    pad: TabPadding,
-    start: u16,
-    end: u16,
-) -> Vec<(u16, u16)> {
+fn compute_tab_spans(nav: &TabNav<'_>, pad: TabPadding, start: u16, end: u16) -> Vec<(u16, u16)> {
     let mut spans = Vec::with_capacity(nav.tabs.len());
     let mut pos = start;
 
@@ -449,10 +450,7 @@ fn effective_indicator<'a>(nav: &TabNav<'a>) -> Option<&'a str> {
 }
 
 fn label_origin(left: u16, top: u16, pad: TabPadding) -> (u16, u16) {
-    (
-        left + TAB_BORDER + pad.left,
-        top + TAB_BORDER + pad.top,
-    )
+    (left + TAB_BORDER + pad.left, top + TAB_BORDER + pad.top)
 }
 
 impl Widget for TabNav<'_> {
@@ -498,7 +496,16 @@ fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
 
         draw_top_border(left_x, right_x, top_y, border, bs, buf);
         draw_horizontal_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
-        draw_horizontal_label(left_x, right_x, label_y, label, pad, nav.all_caps, text_style, buf);
+        draw_horizontal_label(
+            left_x,
+            right_x,
+            label_y,
+            label,
+            pad,
+            nav.all_caps,
+            text_style,
+            buf,
+        );
 
         if active {
             if let Some(sym) = effective_indicator(&nav) {
@@ -532,7 +539,9 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
     let pad = effective_padding(&nav);
     let rail_width = nav.vertical_rail_width().min(area.width);
 
-    if rail_width < TAB_BORDER * 2 + pad.left + pad.right || area.height <= margin.start + margin.end {
+    if rail_width < TAB_BORDER * 2 + pad.left + pad.right
+        || area.height <= margin.start + margin.end
+    {
         return;
     }
 
@@ -543,7 +552,15 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
     let content_top = area.y + margin.start;
     let content_bottom = area.bottom() - margin.end;
 
-    draw_vertical_baseline(left_x, right_x, content_top, content_bottom, border, bs, buf);
+    draw_vertical_baseline(
+        left_x,
+        right_x,
+        content_top,
+        content_bottom,
+        border,
+        bs,
+        buf,
+    );
 
     let positions = compute_tab_spans(&nav, pad, content_top, content_bottom);
     let mut first_rendered: Option<(usize, u16)> = None;
@@ -559,7 +576,16 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
 
         draw_top_border(left_x, right_x, top_y, border, bs, buf);
         draw_vertical_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
-        draw_vertical_label(left_x, right_x, top_y, label, pad, nav.all_caps, text_style, buf);
+        draw_vertical_label(
+            left_x,
+            right_x,
+            top_y,
+            label,
+            pad,
+            nav.all_caps,
+            text_style,
+            buf,
+        );
         draw_bottom_border(left_x, right_x, bot_y, border, bs, buf);
 
         if active {
@@ -770,6 +796,7 @@ fn label_char(ch: char, all_caps: bool) -> char {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_horizontal_label(
     left: u16,
     right: u16,
@@ -793,6 +820,7 @@ fn draw_horizontal_label(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_vertical_label(
     left: u16,
     right: u16,
@@ -871,7 +899,14 @@ fn draw_active_right(
         .set_style(style);
 }
 
-fn draw_inactive_vertical_right(_left: u16, right: u16, top: u16, bottom: u16, style: Style, buf: &mut Buffer) {
+fn draw_inactive_vertical_right(
+    _left: u16,
+    right: u16,
+    top: u16,
+    bottom: u16,
+    style: Style,
+    buf: &mut Buffer,
+) {
     buf[(right, top)].set_symbol("┤").set_style(style);
     buf[(right, bottom)].set_symbol("┤").set_style(style);
 }
@@ -909,7 +944,10 @@ mod tests {
     fn default_margin_and_padding() {
         let horizontal = TabNav::new(&["Tab"], 0);
         assert_eq!(effective_margin(&horizontal), TabMargin::ZERO);
-        assert_eq!(effective_padding(&horizontal), TabPadding::horizontal_default());
+        assert_eq!(
+            effective_padding(&horizontal),
+            TabPadding::horizontal_default()
+        );
 
         let vertical = TabNav::new(&["T\na\nb"], 0).orientation(TabOrientation::Vertical);
         assert_eq!(effective_margin(&vertical), TabMargin::vertical_default());
