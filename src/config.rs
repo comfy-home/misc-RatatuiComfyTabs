@@ -169,4 +169,19 @@ impl TabWheelDirection {
             Self::Down => TabDirection::Next,
         }
     }
+
+    /// Pick the scroll axis for tab switching.
+    ///
+    /// Horizontal strips prefer touchpad left/right (`horizontal`) then vertical wheel.
+    /// Vertical strips prefer vertical wheel then horizontal.
+    pub fn from_axes(
+        vertical: Option<Self>,
+        horizontal: Option<Self>,
+        orientation: TabOrientation,
+    ) -> Option<Self> {
+        match orientation {
+            TabOrientation::Horizontal => horizontal.or(vertical),
+            TabOrientation::Vertical => vertical.or(horizontal),
+        }
+    }
 }
