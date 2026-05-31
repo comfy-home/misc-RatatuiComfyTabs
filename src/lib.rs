@@ -10,8 +10,9 @@ use ratatui_core::{
     layout::Rect,
     style::{Modifier, Style},
     symbols,
-    widgets::Widget,
+    widgets::{StatefulWidget, Widget},
 };
+use unicode_width::UnicodeWidthChar;
 
 const DEFAULT_INDICATOR: &str = "▸";
 const TAB_BORDER: u16 = 1;
@@ -125,6 +126,165 @@ pub enum TabOrientation {
     Vertical,
 }
 
+/// Behaviour when tabs exceed available strip space.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OverflowPolicy {
+    /// Show tabs from the start until space runs out. Hidden tabs are omitted.
+    #[default]
+    Truncate,
+    /// Render a sliding window. Use [`TabNavState::scroll_offset`] (or
+    /// [`TabNav::scroll_offset`] for stateless rendering) as the index of the first visible tab.
+    Scroll,
+}
+
+/// Primary-axis navigation step for keyboard or mouse wheel handlers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TabDirection {
+    /// Previous tab (left in horizontal mode, up in vertical mode).
+    Previous,
+    /// Next tab (right in horizontal mode, down in vertical mode).
+    Next,
+}
+
+/// Physical axis input mapped to [`TabDirection`] by orientation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TabAxis {
+    /// Left arrow / `h` (horizontal) or up arrow / `k` (vertical).
+    Decrease,
+    /// Right arrow / `l` (horizontal) or down arrow / `j` (vertical).
+    Increase,
+}
+
+impl TabAxis {
+    /// Maps a decrease/increase axis to previous/next tab selection.
+    pub const fn direction(self) -> TabDirection {
+        match self {
+            Self::Decrease => TabDirection::Previous,
+            Self::Increase => TabDirection::Next,
+        }
+    }
+}
+
+/// Mutable tab selection and scroll state for [`StatefulWidget`] rendering.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TabNavState {
+    /// Index of the highlighted tab.
+    pub selected: usize,
+    /// Index of the first visible tab when [`OverflowPolicy::Scroll`] is active.
+    pub scroll_offset: usize,
+}
+
+impl TabNavState {
+    /// Creates state with `selected` and `scroll_offset` at zero.
+    pub const fn new(selected: usize) -> Self {
+        Self {
+            selected,
+            scroll_offset: 0,
+        }
+    }
+
+    /// Sets the selected tab, clamped to `tab_count`.
+    pub fn select(&mut self, index: usize, tab_count: usize) {
+        if tab_count == 0 {
+            self.selected = 0;
+            self.scroll_offset = 0;
+            return;
+        }
+        self.selected = index.min(tab_count - 1);
+    }
+
+    /// Moves selection along the strip's primary axis.
+    pub fn select_direction(&mut self, direction: TabDirection, tab_count: usize) {
+        if tab_count == 0 {
+            return;
+        }
+        self.selected = match direction {
+            TabDirection::Previous => self.selected.saturating_sub(1),
+            TabDirection::Next => (self.selected + 1).min(tab_count - 1),
+        };
+    }
+
+    /// Wraps selection at the ends of the tab list.
+    pub fn select_direction_wrapping(&mut self, direction: TabDirection, tab_count: usize) {
+        if tab_count == 0 {
+            return;
+        }
+        self.selected = match direction {
+            TabDirection::Previous => (self.selected + tab_count - 1) % tab_count,
+            TabDirection::Next => (self.selected + 1) % tab_count,
+        };
+    }
+
+    /// Scrolls the window one tab toward the start (scroll mode only).
+    pub fn scroll_prev(&mut self) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(1);
+    }
+
+    /// Scrolls the window one tab toward the end when more tabs are hidden.
+    pub fn scroll_next(&mut self, nav: &TabNav<'_>, area: Rect) {
+        if nav.overflow != OverflowPolicy::Scroll {
+            return;
+        }
+        let viewport = compute_viewport(nav, area, self.scroll_offset);
+        if viewport.clipped_after {
+            self.scroll_offset += 1;
+        }
+    }
+
+    /// Adjusts [`scroll_offset`](Self::scroll_offset) so [`selected`](Self::selected) is visible.
+    pub fn ensure_selected_visible(&mut self, nav: &TabNav<'_>, area: Rect) {
+        if nav.tabs.is_empty() || nav.overflow != OverflowPolicy::Scroll {
+            return;
+        }
+
+        if compute_viewport(nav, area, self.scroll_offset)
+            .entries
+            .iter()
+            .any(|entry| entry.index == self.selected)
+        {
+            return;
+        }
+
+        if self.selected < self.scroll_offset {
+            self.scroll_offset = self.selected;
+            return;
+        }
+
+        while self.scroll_offset < nav.tabs.len() {
+            if compute_viewport(nav, area, self.scroll_offset)
+                .entries
+                .iter()
+                .any(|entry| entry.index == self.selected)
+            {
+                break;
+            }
+            self.scroll_offset += 1;
+        }
+    }
+
+    /// Selects along the primary axis and keeps the selection visible in scroll mode.
+    pub fn select_direction_visible(
+        &mut self,
+        direction: TabDirection,
+        nav: &TabNav<'_>,
+        area: Rect,
+    ) {
+        self.select_direction(direction, nav.tabs.len());
+        self.ensure_selected_visible(nav, area);
+    }
+
+    /// Wraps selection and keeps it visible in scroll mode.
+    pub fn select_direction_wrapping_visible(
+        &mut self,
+        direction: TabDirection,
+        nav: &TabNav<'_>,
+        area: Rect,
+    ) {
+        self.select_direction_wrapping(direction, nav.tabs.len());
+        self.ensure_selected_visible(nav, area);
+    }
+}
+
 /// Converts a single-line label into a vertical stack of characters (one per row).
 ///
 /// ```
@@ -155,8 +315,22 @@ pub fn vertical_label(text: &str) -> String {
 ///
 /// `2 + padding.top + label_line_count + padding.bottom`
 ///
-/// Label width uses the longest line's byte length (`.len()`). Override per-tab sizes with
+/// Label width uses [`unicode_width`](https://docs.rs/unicode-width) display width (wide
+/// characters such as CJK count as two columns). Override per-tab sizes with
 /// [`tab_widths`](TabNav::tab_widths) or [`tab_heights`](TabNav::tab_heights).
+///
+/// ## Overflow
+///
+/// Default [`OverflowPolicy::Truncate`] omits tabs that do not fit. [`OverflowPolicy::Scroll`]
+/// renders a sliding window driven by [`TabNavState::scroll_offset`]. Optional edge affordances
+/// (`‹` / `›` / `…`) mark clipped tabs when [`overflow_affordance`](TabNav::overflow_affordance)
+/// is enabled.
+///
+/// ## Stateful rendering
+///
+/// Implement [`StatefulWidget`] with [`TabNavState`] to keep selection and scroll between frames.
+/// Use [`TabNavState::select_direction_visible`] or [`TabAxis::direction`] to reduce navigation
+/// boilerplate.
 ///
 /// ## Layout helpers
 ///
@@ -185,6 +359,9 @@ pub struct TabNav<'a> {
     border_set: symbols::border::Set<'a>,
     /// Primary-axis size per tab (width when horizontal, height when vertical).
     tab_sizes: Option<&'a [u16]>,
+    overflow: OverflowPolicy,
+    scroll_offset: usize,
+    overflow_affordance: bool,
 }
 
 impl<'a> TabNav<'a> {
@@ -206,6 +383,9 @@ impl<'a> TabNav<'a> {
             indicator_explicit: false,
             border_set: symbols::border::ROUNDED,
             tab_sizes: None,
+            overflow: OverflowPolicy::Truncate,
+            scroll_offset: 0,
+            overflow_affordance: true,
         }
     }
 
@@ -291,10 +471,32 @@ impl<'a> TabNav<'a> {
         self
     }
 
+    /// Overflow behaviour when tabs exceed strip space. Default: [`OverflowPolicy::Truncate`].
+    pub fn overflow(mut self, policy: OverflowPolicy) -> Self {
+        self.overflow = policy;
+        self
+    }
+
+    /// First visible tab index for stateless [`OverflowPolicy::Scroll`] rendering.
+    pub fn scroll_offset(mut self, offset: usize) -> Self {
+        self.scroll_offset = offset;
+        self
+    }
+
+    /// Draw `‹` / `›` / `…` at clipped edges when tabs are hidden. Default: `true`.
+    pub fn overflow_affordance(mut self, enabled: bool) -> Self {
+        self.overflow_affordance = enabled;
+        self
+    }
+
     /// Auto-computed width for tab `index` using the current padding (ignores [`tab_widths`]).
     pub fn auto_tab_width(&self, index: usize) -> Option<u16> {
         let label = self.tabs.get(index)?;
-        Some(auto_horizontal_tab_width(label, effective_padding(self)))
+        Some(auto_horizontal_tab_width(
+            label,
+            effective_padding(self),
+            self.all_caps,
+        ))
     }
 
     /// Auto-computed height for tab `index` using the current padding (ignores [`tab_heights`]).
@@ -303,11 +505,16 @@ impl<'a> TabNav<'a> {
         Some(auto_vertical_tab_height(label, effective_padding(self)))
     }
 
-    /// Layout rectangle for each tab that fits in `area` (same geometry as rendering).
+    /// Layout rectangle for each visible tab (same geometry as rendering).
     ///
     /// Returns one [`Rect`] per visible tab in tab order. Empty when `area` is too small or
-    /// there are no tabs.
+    /// there are no tabs. Respects [`overflow`](Self::overflow) and `scroll_offset`.
     pub fn tab_rects(&self, area: Rect) -> Vec<Rect> {
+        self.tab_rects_with_scroll(area, self.scroll_offset)
+    }
+
+    /// Like [`tab_rects`](Self::tab_rects) but uses an explicit scroll offset (scroll mode).
+    pub fn tab_rects_with_scroll(&self, area: Rect, scroll_offset: usize) -> Vec<Rect> {
         if self.tabs.is_empty() {
             return Vec::new();
         }
@@ -321,14 +528,13 @@ impl<'a> TabNav<'a> {
                 if area.height < strip_height || area.width <= margin.start + margin.end {
                     return Vec::new();
                 }
-                let content_left = area.x + margin.start;
-                let content_right = area.right() - margin.end;
-                compute_tab_spans(self, pad, content_left, content_right)
+                compute_viewport(self, area, scroll_offset)
+                    .entries
                     .into_iter()
-                    .map(|(offset, size)| Rect {
-                        x: offset,
+                    .map(|entry| Rect {
+                        x: entry.offset,
                         y: area.y,
-                        width: size,
+                        width: entry.size,
                         height: strip_height,
                     })
                     .collect()
@@ -340,15 +546,14 @@ impl<'a> TabNav<'a> {
                 {
                     return Vec::new();
                 }
-                let content_top = area.y + margin.start;
-                let content_bottom = area.bottom() - margin.end;
-                compute_tab_spans(self, pad, content_top, content_bottom)
+                compute_viewport(self, area, scroll_offset)
+                    .entries
                     .into_iter()
-                    .map(|(offset, size)| Rect {
+                    .map(|entry| Rect {
                         x: area.x,
-                        y: offset,
+                        y: entry.offset,
                         width: rail_width,
-                        height: size,
+                        height: entry.size,
                     })
                     .collect()
             }
@@ -366,9 +571,9 @@ impl<'a> TabNav<'a> {
         let pad = effective_padding(self);
         self.tabs
             .iter()
-            .map(|label| auto_horizontal_tab_width(label, pad))
+            .map(|label| auto_horizontal_tab_width(label, pad, self.all_caps))
             .max()
-            .unwrap_or_else(|| auto_horizontal_tab_width("", pad))
+            .unwrap_or_else(|| auto_horizontal_tab_width("", pad, self.all_caps))
     }
 }
 
@@ -398,15 +603,24 @@ fn label_line_count(label: &str) -> u16 {
     }
 }
 
-fn label_display_width(label: &str) -> u16 {
-    match label.lines().map(|line| line.len()).max() {
-        Some(width) => width as u16,
-        None => 0,
-    }
+fn char_display_width(ch: char, all_caps: bool) -> u16 {
+    label_char(ch, all_caps).width().unwrap_or(0) as u16
 }
 
-fn auto_horizontal_tab_width(label: &str, pad: TabPadding) -> u16 {
-    TAB_BORDER * 2 + pad.left + label_display_width(label) + pad.right
+fn label_display_width(label: &str, all_caps: bool) -> u16 {
+    label
+        .lines()
+        .map(|line| {
+            line.chars()
+                .map(|ch| char_display_width(ch, all_caps))
+                .sum::<u16>()
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+fn auto_horizontal_tab_width(label: &str, pad: TabPadding, all_caps: bool) -> u16 {
+    TAB_BORDER * 2 + pad.left + label_display_width(label, all_caps) + pad.right
 }
 
 fn auto_vertical_tab_height(label: &str, pad: TabPadding) -> u16 {
@@ -417,26 +631,120 @@ fn primary_tab_size(nav: &TabNav<'_>, index: usize, label: &str, pad: TabPadding
     nav.tab_sizes
         .and_then(|sizes| sizes.get(index).copied())
         .unwrap_or_else(|| match nav.orientation {
-            TabOrientation::Horizontal => auto_horizontal_tab_width(label, pad),
+            TabOrientation::Horizontal => auto_horizontal_tab_width(label, pad, nav.all_caps),
             TabOrientation::Vertical => auto_vertical_tab_height(label, pad),
         })
 }
 
-/// `(offset, size)` pairs along the strip flow axis for tabs that fit in `[start, end)`.
-fn compute_tab_spans(nav: &TabNav<'_>, pad: TabPadding, start: u16, end: u16) -> Vec<(u16, u16)> {
-    let mut spans = Vec::with_capacity(nav.tabs.len());
-    let mut pos = start;
+struct TabEntry {
+    index: usize,
+    offset: u16,
+    size: u16,
+}
 
-    for (index, label) in nav.tabs.iter().enumerate() {
-        let size = primary_tab_size(nav, index, label, pad);
-        if pos.saturating_add(size) > end {
-            break;
-        }
-        spans.push((pos, size));
-        pos += size;
+struct TabViewport {
+    entries: Vec<TabEntry>,
+    clipped_before: bool,
+    clipped_after: bool,
+    before_affordance_at: Option<u16>,
+    after_affordance_at: Option<u16>,
+}
+
+fn flow_bounds(nav: &TabNav<'_>, area: Rect) -> Option<(u16, u16)> {
+    if nav.tabs.is_empty() {
+        return None;
     }
 
-    spans
+    let margin = effective_margin(nav);
+    match nav.orientation {
+        TabOrientation::Horizontal => {
+            let strip_height = nav.horizontal_strip_height();
+            if area.height < strip_height || area.width <= margin.start + margin.end {
+                return None;
+            }
+            Some((area.x + margin.start, area.right() - margin.end))
+        }
+        TabOrientation::Vertical => {
+            let rail_width = nav.vertical_rail_width().min(area.width);
+            let pad = effective_padding(nav);
+            if rail_width < TAB_BORDER * 2 + pad.left + pad.right
+                || area.height <= margin.start + margin.end
+            {
+                return None;
+            }
+            Some((area.y + margin.start, area.bottom() - margin.end))
+        }
+    }
+}
+
+fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usize) -> TabViewport {
+    let pad = effective_padding(nav);
+    let Some((flow_start, flow_end)) = flow_bounds(nav, area) else {
+        return TabViewport {
+            entries: Vec::new(),
+            clipped_before: false,
+            clipped_after: false,
+            before_affordance_at: None,
+            after_affordance_at: None,
+        };
+    };
+
+    let total = nav.tabs.len();
+    let mut first_index = 0usize;
+    let mut clipped_before = false;
+    let mut content_start = flow_start;
+
+    if nav.overflow == OverflowPolicy::Scroll {
+        first_index = scroll_offset.min(total.saturating_sub(1));
+        clipped_before = first_index > 0;
+        if clipped_before && nav.overflow_affordance {
+            content_start = content_start.saturating_add(1);
+        }
+    }
+
+    let mut entries = Vec::with_capacity(total);
+    let mut pos = content_start;
+
+    for index in first_index..total {
+        let size = primary_tab_size(nav, index, nav.tabs[index], pad);
+        let has_more = index + 1 < total;
+
+        if pos.saturating_add(size) > flow_end {
+            break;
+        }
+
+        if nav.overflow == OverflowPolicy::Scroll
+            && has_more
+            && nav.overflow_affordance
+            && pos.saturating_add(size).saturating_add(1) > flow_end
+        {
+            break;
+        }
+
+        entries.push(TabEntry {
+            index,
+            offset: pos,
+            size,
+        });
+        pos = pos.saturating_add(size);
+    }
+
+    let clipped_after = entries.last().is_some_and(|entry| entry.index + 1 < total);
+
+    let before_affordance_at = (clipped_before && nav.overflow_affordance).then_some(flow_start);
+    let after_affordance_at = if clipped_after && nav.overflow_affordance {
+        Some(flow_end.saturating_sub(1))
+    } else {
+        None
+    };
+
+    TabViewport {
+        entries,
+        clipped_before,
+        clipped_after,
+        before_affordance_at,
+        after_affordance_at,
+    }
 }
 
 fn effective_indicator<'a>(nav: &TabNav<'a>) -> Option<&'a str> {
@@ -455,20 +763,46 @@ fn label_origin(left: u16, top: u16, pad: TabPadding) -> (u16, u16) {
 
 impl Widget for TabNav<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if self.tabs.is_empty() {
-            return;
-        }
-
-        match self.orientation {
-            TabOrientation::Horizontal => render_horizontal(self, area, buf),
-            TabOrientation::Vertical => render_vertical(self, area, buf),
-        }
+        let selected = self.selected;
+        let scroll_offset = self.scroll_offset;
+        render_tab_nav(&self, area, buf, selected, scroll_offset);
     }
 }
 
-fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
-    let margin = effective_margin(&nav);
-    let pad = effective_padding(&nav);
+impl StatefulWidget for TabNav<'_> {
+    type State = TabNavState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        render_tab_nav(&self, area, buf, state.selected, state.scroll_offset);
+    }
+}
+
+fn render_tab_nav(
+    nav: &TabNav<'_>,
+    area: Rect,
+    buf: &mut Buffer,
+    selected: usize,
+    scroll_offset: usize,
+) {
+    if nav.tabs.is_empty() {
+        return;
+    }
+
+    match nav.orientation {
+        TabOrientation::Horizontal => render_horizontal(nav, area, buf, selected, scroll_offset),
+        TabOrientation::Vertical => render_vertical(nav, area, buf, selected, scroll_offset),
+    }
+}
+
+fn render_horizontal(
+    nav: &TabNav<'_>,
+    area: Rect,
+    buf: &mut Buffer,
+    selected: usize,
+    scroll_offset: usize,
+) {
+    let margin = effective_margin(nav);
+    let pad = effective_padding(nav);
     let strip_height = nav.horizontal_strip_height();
 
     if area.height < strip_height || area.width <= margin.start + margin.end {
@@ -486,13 +820,14 @@ fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
 
     draw_horizontal_baseline(content_left, content_right, bot_y, border, bs, buf);
 
-    let positions = compute_tab_spans(&nav, pad, content_left, content_right);
+    let viewport = compute_viewport(nav, area, scroll_offset);
 
-    for (i, (label, &(tx, tw))) in nav.tabs.iter().zip(&positions).enumerate() {
-        let active = i == nav.selected;
-        let left_x = tx;
-        let right_x = tx + tw - 1;
-        let text_style = tab_text_style(&nav, active);
+    for entry in &viewport.entries {
+        let label = nav.tabs[entry.index];
+        let active = entry.index == selected;
+        let left_x = entry.offset;
+        let right_x = entry.offset + entry.size - 1;
+        let text_style = tab_text_style(nav, active);
 
         draw_top_border(left_x, right_x, top_y, border, bs, buf);
         draw_horizontal_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
@@ -508,7 +843,7 @@ fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         );
 
         if active {
-            if let Some(sym) = effective_indicator(&nav) {
+            if let Some(sym) = effective_indicator(nav) {
                 let indicator_x = if pad.left > 0 {
                     left_x + TAB_BORDER + pad.left - 1
                 } else {
@@ -524,19 +859,27 @@ fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         }
     }
 
+    draw_horizontal_overflow_affordances(&viewport, bot_y, bs, buf);
+
     apply_horizontal_tab_bar_end(
         content_left,
         content_right,
         bot_y,
-        effective_tab_bar_end(&nav),
+        effective_tab_bar_end(nav),
         bs,
         buf,
     );
 }
 
-fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
-    let margin = effective_margin(&nav);
-    let pad = effective_padding(&nav);
+fn render_vertical(
+    nav: &TabNav<'_>,
+    area: Rect,
+    buf: &mut Buffer,
+    selected: usize,
+    scroll_offset: usize,
+) {
+    let margin = effective_margin(nav);
+    let pad = effective_padding(nav);
     let rail_width = nav.vertical_rail_width().min(area.width);
 
     if rail_width < TAB_BORDER * 2 + pad.left + pad.right
@@ -562,17 +905,18 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         buf,
     );
 
-    let positions = compute_tab_spans(&nav, pad, content_top, content_bottom);
+    let positions = compute_viewport(nav, area, scroll_offset);
     let mut first_rendered: Option<(usize, u16)> = None;
 
-    for (i, (label, &(ty, th))) in nav.tabs.iter().zip(&positions).enumerate() {
+    for entry in &positions.entries {
+        let label = nav.tabs[entry.index];
         if first_rendered.is_none() {
-            first_rendered = Some((i, ty));
+            first_rendered = Some((entry.index, entry.offset));
         }
-        let active = i == nav.selected;
-        let top_y = ty;
-        let bot_y = ty + th - 1;
-        let text_style = tab_text_style(&nav, active);
+        let active = entry.index == selected;
+        let top_y = entry.offset;
+        let bot_y = entry.offset + entry.size - 1;
+        let text_style = tab_text_style(nav, active);
 
         draw_top_border(left_x, right_x, top_y, border, bs, buf);
         draw_vertical_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
@@ -589,7 +933,7 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         draw_bottom_border(left_x, right_x, bot_y, border, bs, buf);
 
         if active {
-            if let Some(sym) = effective_indicator(&nav) {
+            if let Some(sym) = effective_indicator(nav) {
                 let (label_x, label_y) = label_origin(left_x, top_y, pad);
                 if label_y > top_y + TAB_BORDER {
                     buf[(label_x, label_y - 1)]
@@ -603,16 +947,56 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         }
     }
 
+    draw_vertical_overflow_affordances(&positions, right_x, bs, buf);
+
     if let Some((first_index, first_top)) = first_rendered {
         apply_vertical_tab_bar_end(
-            first_index == nav.selected,
+            first_index == selected,
             first_top,
             right_x,
             content_bottom,
-            effective_tab_bar_end(&nav),
+            effective_tab_bar_end(nav),
             bs,
             buf,
         );
+    }
+}
+
+fn draw_horizontal_overflow_affordances(
+    viewport: &TabViewport,
+    baseline_y: u16,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    if let Some(x) = viewport.before_affordance_at {
+        buf[(x, baseline_y)].set_symbol("‹").set_style(style);
+    }
+    if let Some(x) = viewport.after_affordance_at {
+        let symbol = if viewport.clipped_before {
+            "›"
+        } else {
+            "…"
+        };
+        buf[(x, baseline_y)].set_symbol(symbol).set_style(style);
+    }
+}
+
+fn draw_vertical_overflow_affordances(
+    viewport: &TabViewport,
+    rail_x: u16,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    if let Some(y) = viewport.before_affordance_at {
+        buf[(rail_x, y)].set_symbol("↑").set_style(style);
+    }
+    if let Some(y) = viewport.after_affordance_at {
+        let symbol = if viewport.clipped_before {
+            "↓"
+        } else {
+            "…"
+        };
+        buf[(rail_x, y)].set_symbol(symbol).set_style(style);
     }
 }
 
@@ -808,15 +1192,21 @@ fn draw_horizontal_label(
     buf: &mut Buffer,
 ) {
     let label_x = left + TAB_BORDER + pad.left;
+    let max_x = right.saturating_sub(TAB_BORDER + pad.right);
+    let mut col = label_x;
 
-    for (j, ch) in label.chars().enumerate() {
-        let cx = label_x + j as u16;
-        if cx > right.saturating_sub(TAB_BORDER + pad.right) {
+    for ch in label.chars() {
+        let width = char_display_width(ch, all_caps);
+        if width == 0 || col > max_x {
             break;
         }
-        buf[(cx, y)]
+        if col.saturating_add(width).saturating_sub(1) > max_x {
+            break;
+        }
+        buf[(col, y)]
             .set_char(label_char(ch, all_caps))
             .set_style(style);
+        col = col.saturating_add(width);
     }
 }
 
@@ -917,19 +1307,25 @@ mod tests {
     use ratatui_core::buffer::Buffer;
     use ratatui_core::layout::Rect;
 
+    fn draw(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
+        ratatui_core::widgets::Widget::render(nav, area, buf);
+    }
+
     fn render_horizontal(tabs: &[&str], selected: usize, width: u16) -> Buffer {
         let area = Rect::new(0, 0, width, 3);
         let mut buf = Buffer::empty(area);
-        TabNav::new(tabs, selected).render(area, &mut buf);
+        draw(TabNav::new(tabs, selected), area, &mut buf);
         buf
     }
 
     fn render_vertical(tabs: &[&str], selected: usize, width: u16, height: u16) -> Buffer {
         let area = Rect::new(0, 0, width, height);
         let mut buf = Buffer::empty(area);
-        TabNav::new(tabs, selected)
-            .orientation(TabOrientation::Vertical)
-            .render(area, &mut buf);
+        draw(
+            TabNav::new(tabs, selected).orientation(TabOrientation::Vertical),
+            area,
+            &mut buf,
+        );
         buf
     }
 
@@ -968,7 +1364,7 @@ mod tests {
         let area = Rect::new(0, 0, 40, 3);
         let mut buf = Buffer::empty(area);
         let expected = buf.clone();
-        TabNav::new(&[], 0).render(area, &mut buf);
+        draw(TabNav::new(&[], 0), area, &mut buf);
         assert_eq!(buf, expected);
     }
 
@@ -977,7 +1373,7 @@ mod tests {
         let area = Rect::new(0, 0, 40, 2);
         let mut buf = Buffer::empty(area);
         let expected = buf.clone();
-        TabNav::new(&["Tab"], 0).render(area, &mut buf);
+        draw(TabNav::new(&["Tab"], 0), area, &mut buf);
         assert_eq!(buf, expected);
     }
 
@@ -986,9 +1382,11 @@ mod tests {
         let area = Rect::new(0, 0, 2, 20);
         let mut buf = Buffer::empty(area);
         let expected = buf.clone();
-        TabNav::new(&["T\na\nb"], 0)
-            .orientation(TabOrientation::Vertical)
-            .render(area, &mut buf);
+        draw(
+            TabNav::new(&["T\na\nb"], 0).orientation(TabOrientation::Vertical),
+            area,
+            &mut buf,
+        );
         assert_eq!(buf, expected);
     }
 
@@ -1024,9 +1422,7 @@ mod tests {
     fn no_indicator_when_disabled() {
         let area = Rect::new(0, 0, 20, 3);
         let mut buf = Buffer::empty(area);
-        TabNav::new(&["Tab"], 0)
-            .indicator(None)
-            .render(area, &mut buf);
+        draw(TabNav::new(&["Tab"], 0).indicator(None), area, &mut buf);
         let mid_line = line_str(&buf, 1);
         assert!(!mid_line.contains("▸"));
     }
@@ -1043,9 +1439,11 @@ mod tests {
     fn square_borders() {
         let area = Rect::new(0, 0, 20, 3);
         let mut buf = Buffer::empty(area);
-        TabNav::new(&["Tab"], 0)
-            .border_set(symbols::border::PLAIN)
-            .render(area, &mut buf);
+        draw(
+            TabNav::new(&["Tab"], 0).border_set(symbols::border::PLAIN),
+            area,
+            &mut buf,
+        );
         let top_line = line_str(&buf, 0);
         assert!(top_line.starts_with("┌"));
     }
@@ -1053,9 +1451,9 @@ mod tests {
     #[test]
     fn horizontal_tab_width_calculation() {
         let pad = TabPadding::horizontal_default();
-        assert_eq!(auto_horizontal_tab_width("Hi", pad), 10);
-        assert_eq!(auto_horizontal_tab_width("", pad), 8);
-        assert_eq!(auto_horizontal_tab_width("Nodes", pad), 13);
+        assert_eq!(auto_horizontal_tab_width("Hi", pad, false), 10);
+        assert_eq!(auto_horizontal_tab_width("", pad, false), 8);
+        assert_eq!(auto_horizontal_tab_width("Nodes", pad, false), 13);
     }
 
     #[test]
@@ -1070,9 +1468,11 @@ mod tests {
     fn horizontal_margin_shifts_tabs() {
         let area = Rect::new(0, 0, 20, 3);
         let mut buf = Buffer::empty(area);
-        TabNav::new(&["Tab"], 0)
-            .margin(TabMargin::horizontal(2, 0))
-            .render(area, &mut buf);
+        draw(
+            TabNav::new(&["Tab"], 0).margin(TabMargin::horizontal(2, 0)),
+            area,
+            &mut buf,
+        );
         let top_line = line_str(&buf, 0);
         assert!(top_line.starts_with("  ╭"));
     }
@@ -1089,9 +1489,11 @@ mod tests {
     fn horizontal_tab_bar_end_angl() {
         let area = Rect::new(0, 0, 20, 3);
         let mut buf = Buffer::empty(area);
-        TabNav::new(&["Tab"], 0)
-            .tab_bar_end(TabBarEnd::Angl)
-            .render(area, &mut buf);
+        draw(
+            TabNav::new(&["Tab"], 0).tab_bar_end(TabBarEnd::Angl),
+            area,
+            &mut buf,
+        );
         let bot_line = line_str(&buf, 2);
         assert!(bot_line.starts_with('├'));
         assert!(bot_line.ends_with('┐'));
@@ -1101,9 +1503,11 @@ mod tests {
     fn horizontal_tab_bar_end_rnd() {
         let area = Rect::new(0, 0, 20, 3);
         let mut buf = Buffer::empty(area);
-        TabNav::new(&["Tab"], 0)
-            .tab_bar_end(TabBarEnd::Rnd)
-            .render(area, &mut buf);
+        draw(
+            TabNav::new(&["Tab"], 0).tab_bar_end(TabBarEnd::Rnd),
+            area,
+            &mut buf,
+        );
         let bot_line = line_str(&buf, 2);
         assert!(bot_line.starts_with('├'));
         assert!(bot_line.ends_with('╮'));
@@ -1113,9 +1517,7 @@ mod tests {
     fn all_caps_renders_uppercase_labels() {
         let area = Rect::new(0, 0, 30, 3);
         let mut buf = Buffer::empty(area);
-        TabNav::new(&["Example"], 0)
-            .all_caps(true)
-            .render(area, &mut buf);
+        draw(TabNav::new(&["Example"], 0).all_caps(true), area, &mut buf);
         let mid_line = line_str(&buf, 1);
         assert!(mid_line.contains("EXAMPLE"));
         assert!(!mid_line.contains("Example"));
@@ -1132,7 +1534,7 @@ mod tests {
         let height = auto_vertical_tab_height(tabs[0], TabPadding::vertical_default());
         let area = Rect::new(0, 0, width, height);
         let mut buf = Buffer::empty(area);
-        nav.render(area, &mut buf);
+        draw(nav, area, &mut buf);
         let right_col = col_str(&buf, width - 1);
         assert!(right_col.starts_with('─'));
         assert!(right_col.ends_with('╰'));
@@ -1155,14 +1557,17 @@ mod tests {
         let label = vertical_label("Log");
         let label = label.as_str();
         let pad = TabPadding::vertical_default();
-        let width = auto_horizontal_tab_width(label, pad);
+        let width = auto_horizontal_tab_width(label, pad, false);
         let height = auto_vertical_tab_height(label, pad);
         let area = Rect::new(0, 0, width, height);
         let mut buf = Buffer::empty(area);
-        TabNav::new(&[label], 0)
-            .orientation(TabOrientation::Vertical)
-            .indicator(Some(DEFAULT_INDICATOR))
-            .render(area, &mut buf);
+        draw(
+            TabNav::new(&[label], 0)
+                .orientation(TabOrientation::Vertical)
+                .indicator(Some(DEFAULT_INDICATOR)),
+            area,
+            &mut buf,
+        );
         let label_col = col_str(&buf, 2);
 
         assert!(label_col.contains("L"));
@@ -1211,7 +1616,7 @@ mod tests {
         let first = first.as_str();
         let second = second.as_str();
         let pad = TabPadding::vertical_default();
-        let width = auto_horizontal_tab_width(first, pad);
+        let width = auto_horizontal_tab_width(first, pad, false);
         let height = auto_vertical_tab_height(first, pad) + auto_vertical_tab_height(second, pad);
         let buf = render_vertical(&[first, second], 1, width, height);
         let right_col = col_str(&buf, width - 1);
@@ -1226,7 +1631,7 @@ mod tests {
         let also = vertical_label("X");
         let also = also.as_str();
         let pad = TabPadding::vertical_default();
-        let width = auto_horizontal_tab_width(tall, pad);
+        let width = auto_horizontal_tab_width(tall, pad, false);
         let height = auto_vertical_tab_height(tall, pad);
         let buf = render_vertical(&[tall, also], 0, width, height);
         let col = col_str(&buf, 2);
@@ -1287,6 +1692,69 @@ mod tests {
         assert_eq!(rects[0].y, area.y);
         assert_eq!(rects[0].width, width);
         assert_eq!(rects[0].height, height);
+    }
+
+    #[test]
+    fn unicode_label_uses_display_width() {
+        let pad = TabPadding::horizontal_default();
+        assert_eq!(auto_horizontal_tab_width("日本", pad, false), 12);
+        assert_eq!(
+            auto_horizontal_tab_width("日本", pad, false),
+            auto_horizontal_tab_width("abcd", pad, false)
+        );
+    }
+
+    #[test]
+    fn scroll_mode_shows_later_tabs() {
+        let tabs = ["One", "Two", "Three", "Four"];
+        let area = Rect::new(0, 0, 28, 3);
+        let mut buf = Buffer::empty(area);
+        draw(
+            TabNav::new(&tabs, 3)
+                .overflow(OverflowPolicy::Scroll)
+                .scroll_offset(2),
+            area,
+            &mut buf,
+        );
+        let mid_line = line_str(&buf, 1);
+        assert!(!mid_line.contains("One"));
+        assert!(mid_line.contains("Three") || mid_line.contains("Four"));
+    }
+
+    #[test]
+    fn truncate_shows_overflow_affordance() {
+        let area = Rect::new(0, 0, 20, 3);
+        let mut buf = Buffer::empty(area);
+        draw(TabNav::new(&["Long", "Overflow"], 0), area, &mut buf);
+        let bot_line = line_str(&buf, 2);
+        assert!(bot_line.contains('…') || bot_line.contains('›'));
+    }
+
+    #[test]
+    fn stateful_widget_uses_state_selection() {
+        let area = Rect::new(0, 0, 30, 3);
+        let mut buf = Buffer::empty(area);
+        let mut state = TabNavState::new(1);
+        ratatui_core::widgets::StatefulWidget::render(
+            TabNav::new(&["A", "B"], 0),
+            area,
+            &mut buf,
+            &mut state,
+        );
+        let mid_line = line_str(&buf, 1);
+        assert!(mid_line.contains('B'));
+    }
+
+    #[test]
+    fn ensure_selected_visible_scrolls_window() {
+        let tabs = ["A", "B", "C", "D", "E"];
+        let nav = TabNav::new(&tabs, 0).overflow(OverflowPolicy::Scroll);
+        let area = Rect::new(0, 0, 24, 3);
+        let mut state = TabNavState::new(4);
+        state.ensure_selected_visible(&nav, area);
+        assert!(state.scroll_offset > 0);
+        let viewport = compute_viewport(&nav, area, state.scroll_offset);
+        assert!(viewport.entries.iter().any(|entry| entry.index == 4));
     }
 
     fn line_str(buf: &Buffer, y: u16) -> String {
