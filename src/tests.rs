@@ -7,7 +7,6 @@
 
 use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
-use ratatui_core::symbols;
 
 use crate::config::{
     OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabWheelDirection,
@@ -153,7 +152,7 @@ fn square_borders() {
     let area = Rect::new(0, 0, 20, 3);
     let mut buf = Buffer::empty(area);
     draw(
-        TabNav::new(&["Tab"], 0).border_set(symbols::border::PLAIN),
+        TabNav::new(&["Tab"], 0).border_set(crate::tab_border::Sqr),
         area,
         &mut buf,
     );
@@ -199,11 +198,11 @@ fn two_active_tabs_layout() {
 }
 
 #[test]
-fn horizontal_tab_bar_end_angl() {
+fn horizontal_tab_bar_end_sqr() {
     let area = Rect::new(0, 0, 20, 3);
     let mut buf = Buffer::empty(area);
     draw(
-        TabNav::new(&["Tab"], 0).tab_bar_end(TabBarEnd::Angl),
+        TabNav::new(&["Tab"], 0).tab_bar_end(TabBarEnd::Sqr),
         area,
         &mut buf,
     );
