@@ -27,7 +27,7 @@ use ratatui::{
 };
 use ratatui_comfy_tabs::{
     OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabNav, TabNavState, TabOrientation,
-    TabPadding, TabWheelDirection, vertical_label,
+    TabPadding, TabWheelDirection, tab_border, vertical_label,
 };
 use ratatui_core::widgets::StatefulWidget;
 use std::io::stdout;
@@ -61,8 +61,8 @@ enum DemoMode {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum BorderKind {
     #[default]
-    Rounded,
-    Square,
+    Rnd,
+    Sqr,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -195,11 +195,11 @@ impl App {
 
                     KeyCode::Char('b') | KeyCode::Char('B') => {
                         self.border_kind = match self.border_kind {
-                            BorderKind::Rounded => BorderKind::Square,
-                            BorderKind::Square => BorderKind::Rounded,
+                            BorderKind::Rnd => BorderKind::Sqr,
+                            BorderKind::Sqr => BorderKind::Rnd,
                         };
                         self.record_command(format!(
-                            "self.border_kind = BorderKind::{:?};",
+                            ".border_set(tab_border::{:?});",
                             self.border_kind
                         ));
                     }
@@ -226,8 +226,8 @@ impl App {
 
                     KeyCode::Char('2') => {
                         self.tab_bar_end = match self.tab_bar_end {
-                            TabBarEnd::NoEnd => TabBarEnd::Angl,
-                            TabBarEnd::Angl => TabBarEnd::Rnd,
+                            TabBarEnd::NoEnd => TabBarEnd::Sqr,
+                            TabBarEnd::Sqr => TabBarEnd::Rnd,
                             TabBarEnd::Rnd => TabBarEnd::NoEnd,
                         };
                         self.record_command(format!(
@@ -510,8 +510,8 @@ impl App {
 
     fn tab_border_set(&self) -> border::Set<'static> {
         match self.border_kind {
-            BorderKind::Rounded => border::ROUNDED,
-            BorderKind::Square => border::PLAIN,
+            BorderKind::Rnd => tab_border::Rnd,
+            BorderKind::Sqr => tab_border::Sqr,
         }
     }
 
@@ -546,7 +546,7 @@ impl App {
     fn tab_bar_end_label(&self) -> &'static str {
         match self.tab_bar_end {
             TabBarEnd::NoEnd => "none",
-            TabBarEnd::Angl => "angl",
+            TabBarEnd::Sqr => "sqr",
             TabBarEnd::Rnd => "rnd",
         }
     }
@@ -601,8 +601,8 @@ impl App {
         let dim = |s: &'static str| Span::styled(s, Style::new().fg(Color::DarkGray));
 
         let border_label = match self.border_kind {
-            BorderKind::Rounded => "rounded",
-            BorderKind::Square => "square",
+            BorderKind::Rnd => "rnd",
+            BorderKind::Sqr => "sqr",
         };
         let mode_label = match self.mode {
             DemoMode::Horizontal => "horizontal",
