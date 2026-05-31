@@ -155,4 +155,30 @@ impl TabNavState {
         }
         true
     }
+
+    /// Selects the tab under the pointer when [`TabNav::mouse_click`] is enabled.
+    ///
+    /// Pass the same `area` used to render the tab strip. Returns `true` when a tab was selected.
+    pub fn handle_mouse_click(
+        &mut self,
+        nav: &TabNav<'_>,
+        area: Rect,
+        mouse_column: u16,
+        mouse_row: u16,
+    ) -> bool {
+        if !nav.mouse_click || nav.tabs.is_empty() {
+            return false;
+        }
+
+        let Some(index) = nav.tab_index_at(area, self.scroll_offset, mouse_column, mouse_row)
+        else {
+            return false;
+        };
+
+        self.select(index, nav.tabs.len());
+        if nav.overflow == OverflowPolicy::Scroll {
+            self.ensure_selected_visible(nav, area);
+        }
+        true
+    }
 }

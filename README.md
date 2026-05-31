@@ -19,6 +19,7 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 - Unicode-aware label width via `unicode-width` (CJK and wide glyphs size correctly)
 - [`StatefulWidget`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) with [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) and [`TabAxis`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) navigation helpers
 - Mouse wheel tab switching over the strip via [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) (enabled by default)
+- Mouse click tab selection via [`TabNavState::handle_mouse_click`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_click) (enabled by default)
 - Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
@@ -94,6 +95,7 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `scroll_offset()` | `0` | First visible tab for stateless scroll mode |
 | `overflow_affordance()` | `true` | `‹` / `›` / `…` at clipped edges |
 | `mouse_wheel()` | `true` | Allow wheel tab switching over the strip |
+| `mouse_click()` | `true` | Allow click tab selection on visible tabs |
 | `auto_tab_width()` / `auto_tab_height()` | — | Default size for one tab index |
 | `horizontal_strip_height()` | — | Minimum render height for horizontal layout |
 | `vertical_rail_width()` | — | Rail width for vertical layout (widest tab) |
@@ -225,6 +227,18 @@ if let Some(direction) =
 
 Pass the full layout strip [`Rect`](https://docs.rs/ratatui-core/latest/ratatui_core/layout/struct.Rect.html) as `strip_area` even when the widget renders into a narrower viewport. Returns `true` when consumed. Disable per widget with `.mouse_wheel(false)`.
 
+### Mouse click
+
+When [`.mouse_click(true)`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.mouse_click) (default), forward left-click events to [`TabNavState::handle_mouse_click`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_click). Pass the same `area` used to render the tab strip:
+
+```rust
+if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+    state.handle_mouse_click(&nav, tab_area, mouse.column, mouse.row);
+}
+```
+
+Use [`TabNav::tab_index_at`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_index_at) when you need the hit target without changing selection. Disable with `.mouse_click(false)`.
+
 ### Crate layout
 
 | Module | Role |
@@ -256,8 +270,10 @@ cargo run --example demo
 | `O` | Toggle overflow (`truncate` / `scroll`) |
 | `W` | Toggle narrow tab strip (forces overflow) |
 | `Y` | Toggle mouse wheel tab switching |
+| `X` | Toggle mouse click tab selection |
 | `[` / `]` | Scroll tab window (scroll mode) |
 | Scroll wheel | Previous / next tab while hovering tabs |
+| Left click | Select tab under pointer |
 | `q` / `Esc` | Quit |
 
 Run `cargo run --example demo` for the interactive showcase.

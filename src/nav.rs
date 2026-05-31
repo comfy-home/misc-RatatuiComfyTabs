@@ -55,6 +55,13 @@ use crate::{DEFAULT_INDICATOR, TAB_BORDER};
 /// [`TabNavState::handle_mouse_wheel`](crate::TabNavState::handle_mouse_wheel) with the pointer
 /// position over the strip to cycle tabs.
 ///
+/// ## Mouse click
+///
+/// When [`mouse_click`](Self::mouse_click) is enabled (default), call
+/// [`TabNavState::handle_mouse_click`](crate::TabNavState::handle_mouse_click) with the pointer
+/// position over a visible tab to select it. Use [`tab_index_at`](Self::tab_index_at) for custom
+/// hit testing.
+///
 /// ## Layout helpers
 ///
 /// Use [`tab_rects`](TabNav::tab_rects) for mouse hit targets or adjacent layout without
@@ -85,6 +92,7 @@ pub struct TabNav<'a> {
     pub(crate) scroll_offset: usize,
     pub(crate) overflow_affordance: bool,
     pub(crate) mouse_wheel: bool,
+    pub(crate) mouse_click: bool,
 }
 
 impl<'a> TabNav<'a> {
@@ -110,6 +118,7 @@ impl<'a> TabNav<'a> {
             scroll_offset: 0,
             overflow_affordance: true,
             mouse_wheel: true,
+            mouse_click: true,
         }
     }
 
@@ -224,6 +233,17 @@ impl<'a> TabNav<'a> {
         self.mouse_wheel
     }
 
+    /// Allow mouse click tab selection on visible tab boxes. Default: `true`.
+    pub fn mouse_click(mut self, enabled: bool) -> Self {
+        self.mouse_click = enabled;
+        self
+    }
+
+    /// Whether mouse click tab selection is enabled for this widget.
+    pub const fn mouse_click_enabled(&self) -> bool {
+        self.mouse_click
+    }
+
     /// Auto-computed width for tab `index` using the current padding (ignores [`tab_widths`]).
     pub fn auto_tab_width(&self, index: usize) -> Option<u16> {
         let label = self.tabs.get(index)?;
@@ -323,5 +343,68 @@ impl<'a> TabNav<'a> {
         self.tab_rects_with_scroll(strip_area, scroll_offset)
             .iter()
             .any(|rect| rect.contains(position))
+    }
+
+    /// Visible tab index under the pointer, if any.
+    ///
+    /// Pass the same `area` and `scroll_offset` used for rendering. Returns `None` when the
+    /// pointer is outside every visible tab box.
+    pub fn tab_index_at(
+        &self,
+        area: Rect,
+        scroll_offset: usize,
+        mouse_column: u16,
+        mouse_row: u16,
+    ) -> Option<usize> {
+        if self.tabs.is_empty() {
+            return None;
+        }
+
+        let position = Position::new(mouse_column, mouse_row);
+        let margin = effective_margin(self);
+        let pad = effective_padding(self);
+
+        match self.orientation {
+            TabOrientation::Horizontal => {
+                let strip_height = horizontal_strip_height(self);
+                if area.height < strip_height || area.width <= margin.start + margin.end {
+                    return None;
+                }
+                compute_viewport(self, area, scroll_offset)
+                    .entries
+                    .into_iter()
+                    .find(|entry| {
+                        Rect {
+                            x: entry.offset,
+                            y: area.y,
+                            width: entry.size,
+                            height: strip_height,
+                        }
+                        .contains(position)
+                    })
+                    .map(|entry| entry.index)
+            }
+            TabOrientation::Vertical => {
+                let rail_width = vertical_rail_width(self).min(area.width);
+                if rail_width < TAB_BORDER * 2 + pad.left + pad.right
+                    || area.height <= margin.start + margin.end
+                {
+                    return None;
+                }
+                compute_viewport(self, area, scroll_offset)
+                    .entries
+                    .into_iter()
+                    .find(|entry| {
+                        Rect {
+                            x: area.x,
+                            y: entry.offset,
+                            width: rail_width,
+                            height: entry.size,
+                        }
+                        .contains(position)
+                    })
+                    .map(|entry| entry.index)
+            }
+        }
     }
 }

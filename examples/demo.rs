@@ -12,7 +12,7 @@
 use ratatui::{
     Frame,
     crossterm::{
-        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseEvent, MouseEventKind},
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEvent, MouseEventKind},
         execute,
     },
     layout::Alignment,
@@ -81,10 +81,13 @@ struct App {
     overflow: OverflowPolicy,
     narrow_tabs: bool,
     mouse_wheel: bool,
+    mouse_click: bool,
     vertical_labels: Vec<String>,
     wheel_strip_area: Rect,
+    tab_hit_area: Rect,
     last_mouse_column: u16,
     last_mouse_row: u16,
+    last_command: String,
 }
 
 impl Default for App {
@@ -100,15 +103,22 @@ impl Default for App {
             overflow: OverflowPolicy::default(),
             narrow_tabs: false,
             mouse_wheel: true,
+            mouse_click: true,
             vertical_labels: Vec::new(),
             wheel_strip_area: Rect::default(),
+            tab_hit_area: Rect::default(),
             last_mouse_column: 0,
             last_mouse_row: 0,
+            last_command: String::from("// Press a shortcut or click a tab to see the code change"),
         }
     }
 }
 
 impl App {
+    fn record_command(&mut self, text: impl Into<String>) {
+        self.last_command = text.into();
+    }
+
     fn run(mut self, terminal: &mut ratatui::DefaultTerminal) -> std::io::Result<()> {
         self.vertical_labels = TABS.iter().map(|label| vertical_label(label)).collect();
 
@@ -124,10 +134,18 @@ impl App {
                             DemoMode::Horizontal => DemoMode::Vertical,
                             DemoMode::Vertical => DemoMode::Horizontal,
                         };
+                        self.record_command(format!(
+                            "self.mode = DemoMode::{:?};",
+                            self.mode
+                        ));
                     }
 
                     KeyCode::Char('i') | KeyCode::Char('I') => {
                         self.show_indicator = !self.show_indicator;
+                        self.record_command(format!(
+                            "self.show_indicator = !self.show_indicator;  // {}",
+                            self.show_indicator
+                        ));
                     }
 
                     KeyCode::Char('b') | KeyCode::Char('B') => {
@@ -135,6 +153,10 @@ impl App {
                             BorderKind::Rounded => BorderKind::Square,
                             BorderKind::Square => BorderKind::Rounded,
                         };
+                        self.record_command(format!(
+                            "self.border_kind = BorderKind::{:?};",
+                            self.border_kind
+                        ));
                     }
 
                     KeyCode::Char('1') => {
@@ -143,10 +165,18 @@ impl App {
                             PaddingPreset::Alt2 => PaddingPreset::Alt3,
                             PaddingPreset::Alt3 => PaddingPreset::Default,
                         };
+                        self.record_command(format!(
+                            "self.padding_preset = PaddingPreset::{:?};",
+                            self.padding_preset
+                        ));
                     }
 
                     KeyCode::Char('c') | KeyCode::Char('C') => {
                         self.all_caps = !self.all_caps;
+                        self.record_command(format!(
+                            "self.all_caps = !self.all_caps;  // {}",
+                            self.all_caps
+                        ));
                     }
 
                     KeyCode::Char('2') => {
@@ -155,6 +185,10 @@ impl App {
                             TabBarEnd::Angl => TabBarEnd::Rnd,
                             TabBarEnd::Rnd => TabBarEnd::NoEnd,
                         };
+                        self.record_command(format!(
+                            "self.tab_bar_end = TabBarEnd::{:?};",
+                            self.tab_bar_end
+                        ));
                     }
 
                     KeyCode::Char('o') | KeyCode::Char('O') => {
@@ -163,45 +197,105 @@ impl App {
                             OverflowPolicy::Scroll => OverflowPolicy::Truncate,
                         };
                         self.tab_state.scroll_offset = 0;
+                        self.record_command(format!(
+                            "self.overflow = OverflowPolicy::{:?};\nself.tab_state.scroll_offset = 0;",
+                            self.overflow
+                        ));
                     }
 
                     KeyCode::Char('w') | KeyCode::Char('W') => {
                         self.narrow_tabs = !self.narrow_tabs;
+                        self.record_command(format!(
+                            "self.narrow_tabs = !self.narrow_tabs;  // {}",
+                            self.narrow_tabs
+                        ));
                     }
 
                     KeyCode::Char('y') | KeyCode::Char('Y') => {
                         self.mouse_wheel = !self.mouse_wheel;
+                        self.record_command(format!(
+                            "self.mouse_wheel = !self.mouse_wheel;  // {}",
+                            self.mouse_wheel
+                        ));
+                    }
+
+                    KeyCode::Char('x') | KeyCode::Char('X') => {
+                        self.mouse_click = !self.mouse_click;
+                        self.record_command(format!(
+                            "self.mouse_click = !self.mouse_click;  // {}",
+                            self.mouse_click
+                        ));
                     }
 
                     KeyCode::BackTab => {
                         self.tab_state
                             .select_direction_wrapping(TabDirection::Previous, TABS.len());
+                        self.record_command(format!(
+                            "tab_state.select_direction_wrapping(TabDirection::Previous, {});\n// selected = {} ({})",
+                            TABS.len(),
+                            self.tab_state.selected,
+                            TABS[self.tab_state.selected]
+                        ));
                     }
                     KeyCode::Tab => {
                         self.tab_state
                             .select_direction_wrapping(TabDirection::Next, TABS.len());
+                        self.record_command(format!(
+                            "tab_state.select_direction_wrapping(TabDirection::Next, {});\n// selected = {} ({})",
+                            TABS.len(),
+                            self.tab_state.selected,
+                            TABS[self.tab_state.selected]
+                        ));
                     }
 
                     KeyCode::Left | KeyCode::Char('h') if self.mode == DemoMode::Horizontal => {
                         self.tab_state
                             .select_direction(TabAxis::Decrease.direction(), TABS.len());
+                        self.record_command(format!(
+                            "tab_state.select_direction(TabDirection::Previous, {});\n// selected = {} ({})",
+                            TABS.len(),
+                            self.tab_state.selected,
+                            TABS[self.tab_state.selected]
+                        ));
                     }
                     KeyCode::Right | KeyCode::Char('l') if self.mode == DemoMode::Horizontal => {
                         self.tab_state
                             .select_direction(TabAxis::Increase.direction(), TABS.len());
+                        self.record_command(format!(
+                            "tab_state.select_direction(TabDirection::Next, {});\n// selected = {} ({})",
+                            TABS.len(),
+                            self.tab_state.selected,
+                            TABS[self.tab_state.selected]
+                        ));
                     }
 
                     KeyCode::Up | KeyCode::Char('k') if self.mode == DemoMode::Vertical => {
                         self.tab_state
                             .select_direction(TabAxis::Decrease.direction(), TABS.len());
+                        self.record_command(format!(
+                            "tab_state.select_direction(TabDirection::Previous, {});\n// selected = {} ({})",
+                            TABS.len(),
+                            self.tab_state.selected,
+                            TABS[self.tab_state.selected]
+                        ));
                     }
                     KeyCode::Down | KeyCode::Char('j') if self.mode == DemoMode::Vertical => {
                         self.tab_state
                             .select_direction(TabAxis::Increase.direction(), TABS.len());
+                        self.record_command(format!(
+                            "tab_state.select_direction(TabDirection::Next, {});\n// selected = {} ({})",
+                            TABS.len(),
+                            self.tab_state.selected,
+                            TABS[self.tab_state.selected]
+                        ));
                     }
 
                     KeyCode::Char('[') => {
                         self.tab_state.scroll_prev();
+                        self.record_command(format!(
+                            "tab_state.scroll_prev();\n// scroll_offset = {}",
+                            self.tab_state.scroll_offset
+                        ));
                     }
                     KeyCode::Char(']') => {
                         match self.mode {
@@ -221,6 +315,10 @@ impl App {
                                     .scroll_next(&nav, self.wheel_strip_area);
                             }
                         }
+                        self.record_command(format!(
+                            "tab_state.scroll_next(&nav, wheel_strip_area);\n// scroll_offset = {}",
+                            self.tab_state.scroll_offset
+                        ));
                     }
 
                     _ => {}
@@ -258,11 +356,56 @@ impl App {
         self.last_mouse_column = mouse.column;
         self.last_mouse_row = mouse.row;
 
-        let (vertical, horizontal) = Self::wheel_axes_from_mouse(&mouse);
-        if vertical.is_none() && horizontal.is_none() {
-            return;
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => self.handle_mouse_click(),
+            MouseEventKind::ScrollUp
+            | MouseEventKind::ScrollDown
+            | MouseEventKind::ScrollLeft
+            | MouseEventKind::ScrollRight => self.handle_mouse_wheel(mouse),
+            _ => {}
         }
+    }
 
+    fn handle_mouse_click(&mut self) {
+        let consumed = match self.mode {
+            DemoMode::Horizontal => {
+                let nav = self.styled_tab_nav(TABS);
+                self.tab_state.handle_mouse_click(
+                    &nav,
+                    self.tab_hit_area,
+                    self.last_mouse_column,
+                    self.last_mouse_row,
+                )
+            }
+            DemoMode::Vertical => {
+                let label_refs: Vec<&str> = self
+                    .vertical_labels
+                    .iter()
+                    .map(String::as_str)
+                    .collect();
+                let nav = self.styled_tab_nav(&label_refs);
+                self.tab_state.handle_mouse_click(
+                    &nav,
+                    self.tab_hit_area,
+                    self.last_mouse_column,
+                    self.last_mouse_row,
+                )
+            }
+        };
+
+        if consumed {
+            self.record_command(format!(
+                "tab_state.handle_mouse_click(&nav, tab_hit_area, {}, {});\n// selected = {} ({})",
+                self.last_mouse_column,
+                self.last_mouse_row,
+                self.tab_state.selected,
+                TABS[self.tab_state.selected]
+            ));
+        }
+    }
+
+    fn handle_mouse_wheel(&mut self, mouse: MouseEvent) {
+        let (vertical, horizontal) = Self::wheel_axes_from_mouse(&mouse);
         let Some(direction) =
             TabWheelDirection::from_axes(vertical, horizontal, self.tab_orientation())
         else {
@@ -298,7 +441,15 @@ impl App {
                 )
             }
         };
-        let _ = consumed;
+
+        if consumed {
+            self.record_command(format!(
+                "tab_state.handle_mouse_wheel(&nav, wheel_strip_area, col, row, TabWheelDirection::{:?});\n// selected = {} ({})",
+                direction,
+                self.tab_state.selected,
+                TABS[self.tab_state.selected]
+            ));
+        }
     }
 
     fn drain_matching_wheel(&mut self, direction: TabWheelDirection) {
@@ -380,7 +531,8 @@ impl App {
         let mut nav = TabNav::new(tabs, self.tab_state.selected)
             .border_set(self.tab_border_set())
             .overflow(self.overflow)
-            .mouse_wheel(self.mouse_wheel);
+            .mouse_wheel(self.mouse_wheel)
+            .mouse_click(self.mouse_click);
         if self.mode == DemoMode::Vertical {
             nav = nav.orientation(TabOrientation::Vertical);
         }
@@ -427,6 +579,7 @@ impl App {
         let overflow_label = self.overflow_label();
         let width_label = if self.narrow_tabs { "narrow" } else { "wide" };
         let wheel_label = if self.mouse_wheel { "on" } else { "off" };
+        let click_label = if self.mouse_click { "on" } else { "off" };
 
         let mut spans = Vec::new();
 
@@ -495,6 +648,10 @@ impl App {
             dim(" wheel ("),
             Span::styled(wheel_label, Style::new().fg(Color::DarkGray)),
             dim(") | "),
+            key("X"),
+            dim(" click ("),
+            Span::styled(click_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
             key("["),
             dim("/"),
             key("]"),
@@ -554,7 +711,7 @@ impl App {
         buf: &mut Buffer,
         border_color: Color,
         bg: Color,
-        body: &str,
+        status: &str,
     ) {
         let block = self.content_block(TABS[self.tab_state.selected], border_color, bg);
         let inner = block.inner(area);
@@ -567,7 +724,25 @@ impl App {
         let [main, footer] =
             Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(inner);
 
-        Paragraph::new(body).render(main, buf);
+        let [top_spacer, command_area, status_area, bottom_spacer] = Layout::vertical([
+            Constraint::Fill(1),
+            Constraint::Min(3),
+            Constraint::Length(1),
+            Constraint::Fill(1),
+        ])
+        .areas(main);
+
+        let _ = (top_spacer, bottom_spacer);
+
+        Paragraph::new(self.last_command.as_str())
+            .alignment(Alignment::Center)
+            .style(Style::new().fg(Color::LightCyan))
+            .render(command_area, buf);
+
+        Paragraph::new(status)
+            .alignment(Alignment::Center)
+            .style(Style::new().fg(Color::DarkGray))
+            .render(status_area, buf);
 
         Paragraph::new(self.shortcut_footer_line())
             .alignment(Alignment::Center)
@@ -615,6 +790,7 @@ impl App {
         };
 
         self.wheel_strip_area = tabs;
+        self.tab_hit_area = tab_area;
         let nav = self.styled_tab_nav(TABS);
         self.tab_state
             .ensure_selected_visible(&nav, self.wheel_strip_area);
@@ -626,7 +802,7 @@ impl App {
             border_color,
             bg,
             &format!(
-                "Selected: {} (scroll {})",
+                "selected: {} · scroll_offset: {}",
                 TABS[self.tab_state.selected], self.tab_state.scroll_offset
             ),
         );
@@ -648,6 +824,7 @@ impl App {
 
         let label_refs: Vec<&str> = self.vertical_labels.iter().map(String::as_str).collect();
         self.wheel_strip_area = tabs;
+        self.tab_hit_area = tab_area;
         let nav = self.styled_tab_nav(&label_refs);
         self.tab_state
             .ensure_selected_visible(&nav, self.wheel_strip_area);
@@ -659,7 +836,7 @@ impl App {
             border_color,
             bg,
             &format!(
-                "Selected: {} (scroll {})",
+                "selected: {} · scroll_offset: {}",
                 TABS[self.tab_state.selected], self.tab_state.scroll_offset
             ),
         );

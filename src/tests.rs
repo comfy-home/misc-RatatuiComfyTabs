@@ -571,3 +571,32 @@ fn wheel_hover_accepts_pointer_over_visible_tab() {
     assert!(nav.wheel_hover(strip, 0, 7, 1));
     assert!(!nav.wheel_hover(strip, 0, 50, 1));
 }
+
+#[test]
+fn mouse_click_selects_tab_under_pointer() {
+    let nav = TabNav::new(&["A", "B", "C"], 0);
+    let area = Rect::new(0, 0, 30, 3);
+    let rects = nav.tab_rects(area);
+    let col = rects[1].x + 1;
+    let row = rects[1].y + 1;
+    let mut state = TabNavState::new(0);
+    assert!(state.handle_mouse_click(&nav, area, col, row));
+    assert_eq!(state.selected, 1);
+}
+
+#[test]
+fn mouse_click_ignored_when_disabled() {
+    let nav = TabNav::new(&["A", "B"], 0).mouse_click(false);
+    let area = Rect::new(0, 0, 20, 3);
+    let rects = nav.tab_rects(area);
+    let mut state = TabNavState::new(0);
+    assert!(!state.handle_mouse_click(&nav, area, rects[0].x + 1, 1));
+    assert_eq!(state.selected, 0);
+}
+
+#[test]
+fn tab_index_at_returns_none_outside_tabs() {
+    let nav = TabNav::new(&["A", "B"], 0);
+    let area = Rect::new(0, 0, 20, 3);
+    assert!(nav.tab_index_at(area, 0, 50, 1).is_none());
+}
