@@ -59,9 +59,9 @@ pub enum TabBarEnd {
     /// Continuous baseline with no corner caps.
     #[default]
     NoEnd,
-    /// Square caps: horizontal `┌`/`┐`; vertical top junction `┬`/`─` and bottom `└`.
+    /// Square caps: horizontal `├`/`┐`; vertical top junction `┬`/`─` and bottom `└`.
     Angl,
-    /// Rounded caps: horizontal `╭`/`╮`; vertical top junction `┬`/`─` and bottom `╰`.
+    /// Rounded caps: horizontal `├`/`╮`; vertical top junction `┬`/`─` and bottom `╰`.
     Rnd,
 }
 
@@ -151,6 +151,7 @@ pub struct TabNav<'a> {
     margin: Option<TabMargin>,
     padding: Option<TabPadding>,
     tab_bar_end: Option<TabBarEnd>,
+    all_caps: bool,
     style: Style,
     highlight_style: Style,
     highlight_bold: bool,
@@ -170,6 +171,7 @@ impl<'a> TabNav<'a> {
             margin: None,
             padding: None,
             tab_bar_end: None,
+            all_caps: false,
             style: Style::new(),
             highlight_style: Style::new(),
             highlight_bold: true,
@@ -201,6 +203,12 @@ impl<'a> TabNav<'a> {
     /// Baseline end-cap style. Default: [`TabBarEnd::NoEnd`].
     pub fn tab_bar_end(mut self, end: TabBarEnd) -> Self {
         self.tab_bar_end = Some(end);
+        self
+    }
+
+    /// Render tab labels in uppercase. Default: `false`.
+    pub fn all_caps(mut self, all_caps: bool) -> Self {
+        self.all_caps = all_caps;
         self
     }
 
@@ -358,7 +366,7 @@ fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
 
         draw_top_border(left_x, right_x, top_y, border, bs, buf);
         draw_horizontal_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
-        draw_horizontal_label(left_x, right_x, label_y, label, pad, text_style, buf);
+        draw_horizontal_label(left_x, right_x, label_y, label, pad, nav.all_caps, text_style, buf);
 
         if active {
             if let Some(sym) = effective_indicator(&nav) {
@@ -419,7 +427,7 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
 
         draw_top_border(left_x, right_x, top_y, border, bs, buf);
         draw_vertical_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
-        draw_vertical_label(left_x, right_x, top_y, label, pad, text_style, buf);
+        draw_vertical_label(left_x, right_x, top_y, label, pad, nav.all_caps, text_style, buf);
         draw_bottom_border(left_x, right_x, bot_y, border, bs, buf);
 
         if active {
@@ -491,8 +499,8 @@ fn apply_horizontal_tab_bar_end(
 
     let (left_cap, right_cap) = match end_style {
         TabBarEnd::NoEnd => return,
-        TabBarEnd::Angl => ("┌", "┐"),
-        TabBarEnd::Rnd => ("╭", "╮"),
+        TabBarEnd::Angl => ("├", "┐"),
+        TabBarEnd::Rnd => ("├", "╮"),
     };
 
     buf[(start, y)].set_symbol(left_cap).set_style(style);
@@ -664,12 +672,21 @@ fn draw_vertical_side_borders(
     }
 }
 
+fn label_char(ch: char, all_caps: bool) -> char {
+    if all_caps {
+        ch.to_uppercase().next().unwrap_or(ch)
+    } else {
+        ch
+    }
+}
+
 fn draw_horizontal_label(
     left: u16,
     right: u16,
     y: u16,
     label: &str,
     pad: TabPadding,
+    all_caps: bool,
     style: Style,
     buf: &mut Buffer,
 ) {
@@ -680,7 +697,9 @@ fn draw_horizontal_label(
         if cx > right.saturating_sub(TAB_BORDER + pad.right) {
             break;
         }
-        buf[(cx, y)].set_char(ch).set_style(style);
+        buf[(cx, y)]
+            .set_char(label_char(ch, all_caps))
+            .set_style(style);
     }
 }
 
@@ -690,6 +709,7 @@ fn draw_vertical_label(
     top: u16,
     label: &str,
     pad: TabPadding,
+    all_caps: bool,
     style: Style,
     buf: &mut Buffer,
 ) {
@@ -706,7 +726,9 @@ fn draw_vertical_label(
             if x > right.saturating_sub(TAB_BORDER + pad.right) {
                 break;
             }
-            buf[(x, y)].set_char(ch).set_style(style);
+            buf[(x, y)]
+                .set_char(label_char(ch, all_caps))
+                .set_style(style);
         }
     }
 }
@@ -943,7 +965,7 @@ mod tests {
             .tab_bar_end(TabBarEnd::Angl)
             .render(area, &mut buf);
         let bot_line = line_str(&buf, 2);
-        assert!(bot_line.starts_with('┌'));
+        assert!(bot_line.starts_with('├'));
         assert!(bot_line.ends_with('┐'));
     }
 
@@ -955,8 +977,20 @@ mod tests {
             .tab_bar_end(TabBarEnd::Rnd)
             .render(area, &mut buf);
         let bot_line = line_str(&buf, 2);
-        assert!(bot_line.starts_with('╭'));
+        assert!(bot_line.starts_with('├'));
         assert!(bot_line.ends_with('╮'));
+    }
+
+    #[test]
+    fn all_caps_renders_uppercase_labels() {
+        let area = Rect::new(0, 0, 30, 3);
+        let mut buf = Buffer::empty(area);
+        TabNav::new(&["Example"], 0)
+            .all_caps(true)
+            .render(area, &mut buf);
+        let mid_line = line_str(&buf, 1);
+        assert!(mid_line.contains("EXAMPLE"));
+        assert!(!mid_line.contains("Example"));
     }
 
     #[test]
