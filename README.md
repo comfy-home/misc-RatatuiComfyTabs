@@ -15,6 +15,9 @@ An advanced tab navigation widget for [Ratatui](https://ratatui.rs) with individ
 - Configurable [`TabMargin`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabMargin.html) and [`TabPadding`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabPadding.html) with orientation-specific defaults
 - [`tab_rects`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_rects) for hit targets and adjacent layout without duplicating width math
 - Optional per-tab size overrides via [`tab_widths`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_widths) / [`tab_heights`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_heights)
+- [`OverflowPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.OverflowPolicy.html) truncate or scroll with edge affordances (`‹` / `›` / `…`)
+- Unicode-aware label width via `unicode-width` (CJK and wide glyphs size correctly)
+- [`StatefulWidget`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) with [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) and [`TabAxis`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) navigation helpers
 - Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
@@ -27,7 +30,7 @@ Or add it manually to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ratatui-comfy-tabs = "0.2"
+ratatui-comfy-tabs = "0.3"
 ratatui = "0.30"
 ```
 
@@ -86,6 +89,9 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `tab_widths()` | auto | Override horizontal tab widths (columns) |
 | `tab_heights()` | auto | Override vertical tab heights (rows) |
 | `tab_rects(area)` | — | Layout `Rect` per visible tab (for hit targets) |
+| `overflow()` | `Truncate` | `Truncate` or `Scroll` when tabs exceed space |
+| `scroll_offset()` | `0` | First visible tab for stateless scroll mode |
+| `overflow_affordance()` | `true` | `‹` / `›` / `…` at clipped edges |
 | `auto_tab_width()` / `auto_tab_height()` | — | Default size for one tab index |
 | `horizontal_strip_height()` | — | Minimum render height for horizontal layout |
 | `vertical_rail_width()` | — | Rail width for vertical layout (widest tab) |
@@ -94,10 +100,10 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 
 CSS-like inset for the tab strip along the flow axis:
 
-| Orientation | Axes | Default | Example |
-|-------------|------|---------|---------|
-| Horizontal | left, right (columns) | `0 0` | `.margin(TabMargin::horizontal(2, 0))` |
-| Vertical | top, bottom (rows) | `0 0` | `.margin(TabMargin::vertical(0, 2))` |
+| Orientation | Axes                  | Default | Example                                |
+| -------------| -----------------------| ---------| ----------------------------------------|
+| Horizontal  | left, right (columns) | `0 0`   | `.margin(TabMargin::horizontal(2, 0))` |
+| Vertical    | top, bottom (rows)    | `0 0`   | `.margin(TabMargin::vertical(0, 2))`   |
 
 Both orientations default to [`TabMargin::ZERO`].
 
@@ -146,7 +152,7 @@ Default vertical tab **height** (rows):
 
 `2 + padding.top + label_line_count + padding.bottom`
 
-Label width uses the longest line's byte length (`.len()`). Use [`auto_tab_width`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.auto_tab_width) / [`auto_tab_height`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.auto_tab_height) to query sizes for a configured widget.
+Label width uses Unicode **display width** ([`unicode-width`](https://docs.rs/unicode-width)). Use [`auto_tab_width`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.auto_tab_width) / [`auto_tab_height`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.auto_tab_height) to query sizes for a configured widget.
 
 Override per-tab sizes when auto layout does not match your UI (e.g. mouse hit targets):
 
@@ -162,7 +168,30 @@ for rect in nav.tab_rects(Rect::new(0, 0, 80, 3)) {
 }
 ```
 
-[`tab_rects`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_rects) returns one rectangle per tab that fits in `area`, using the same truncation rules as rendering. For vertical tabs, pass explicit heights with `.tab_heights(&[…])`.
+[`tab_rects`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_rects) returns one rectangle per tab that fits in `area`, using the same truncation or scroll rules as rendering. For vertical tabs, pass explicit heights with `.tab_heights(&[…])`.
+
+### Overflow and scrolling
+
+When tabs exceed strip space:
+
+| Policy | Behaviour |
+|--------|-----------|
+| `OverflowPolicy::Truncate` (default) | Show tabs from the start; hidden tabs omitted; `…` at the clipped edge |
+| `OverflowPolicy::Scroll` | Sliding window from [`TabNavState::scroll_offset`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#structfield.scroll_offset); `‹` / `›` when more tabs exist off-screen |
+
+```rust
+use ratatui::layout::Rect;
+use ratatui_comfy_tabs::{OverflowPolicy, TabNav, TabNavState, TabDirection};
+use ratatui_core::widgets::StatefulWidget;
+
+let nav = TabNav::new(&["A", "B", "C", "D", "E"], 0).overflow(OverflowPolicy::Scroll);
+let mut state = TabNavState::new(4);
+state.ensure_selected_visible(&nav, Rect::new(0, 0, 24, 3));
+// render with StatefulWidget::render(nav, area, buf, &mut state);
+state.select_direction(TabDirection::Previous, 5);
+```
+
+Use [`TabAxis::Decrease`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) / [`TabAxis::Increase`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) to map arrow keys by orientation (`Decrease` → previous tab, `Increase` → next).
 
 ## Demo
 
@@ -181,6 +210,9 @@ cargo run --example demo
 | `1` | Cycle padding preset (`default` / alt presets) |
 | `2` | Cycle tab bar end (`none` / `angl` / `rnd`) |
 | `C` | Toggle all-caps tab labels |
+| `O` | Toggle overflow (`truncate` / `scroll`) |
+| `W` | Toggle narrow tab strip (forces overflow) |
+| `[` / `]` | Scroll tab window (scroll mode) |
 | `q` / `Esc` | Quit |
 
 Run `cargo run --example demo` for the interactive showcase.
