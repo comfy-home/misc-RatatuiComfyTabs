@@ -52,7 +52,7 @@ pub enum TabBarEnd {
     #[default]
     NoEnd,
     /// Square caps: horizontal `├`/`┐`; vertical top junction `┬`/`─` and bottom `└`.
-    Angl,
+    Sqr,
     /// Rounded caps: horizontal `├`/`╮`; vertical top junction `┬`/`─` and bottom `╰`.
     Rnd,
 }
