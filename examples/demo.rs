@@ -25,7 +25,7 @@ const TABS: &[&str] = &[
     "Nodes",
     "Network",
     "Content",
-    "Inference",
+    "UI",
     "Config",
     "Logs",
 ];
@@ -46,14 +46,23 @@ enum BorderKind {
     Square,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum PaddingPreset {
+    #[default]
+    Default,
+    Alt2,
+    Alt3,
+}
+
 #[derive(Default)]
 struct App {
     selected: usize,
     mode: DemoMode,
     border_kind: BorderKind,
     show_indicator: bool,
-    padding_preset: u8,
+    padding_preset: PaddingPreset,
     tab_bar_end: TabBarEnd,
+    all_caps: bool,
     vertical_labels: Vec<String>,
 }
 
@@ -88,10 +97,14 @@ impl App {
 
                     KeyCode::Char('1') => {
                         self.padding_preset = match self.padding_preset {
-                            1 => 2,
-                            2 => 3,
-                            _ => 1,
+                            PaddingPreset::Default => PaddingPreset::Alt2,
+                            PaddingPreset::Alt2 => PaddingPreset::Alt3,
+                            PaddingPreset::Alt3 => PaddingPreset::Default,
                         };
+                    }
+
+                    KeyCode::Char('c') | KeyCode::Char('C') => {
+                        self.all_caps = !self.all_caps;
                     }
 
                     KeyCode::Char('2') => {
@@ -144,33 +157,23 @@ impl App {
         set
     }
 
-    fn padding_for_mode(&self) -> TabPadding {
-        match self.mode {
-            DemoMode::Horizontal => match self.padding_preset {
-                1 => TabPadding::horizontal_default(),
-                2 => TabPadding::axes(1, 1),
-                _ => TabPadding::axes(1, 5),
-            },
-            DemoMode::Vertical => match self.padding_preset {
-                1 => TabPadding::vertical_default(),
-                2 => TabPadding::uniform(3),
-                _ => TabPadding::new(1, 1, 2, 2),
-            },
+    fn padding_for_mode(&self) -> Option<TabPadding> {
+        match (self.mode, self.padding_preset) {
+            (_, PaddingPreset::Default) => None,
+            (DemoMode::Horizontal, PaddingPreset::Alt2) => Some(TabPadding::axes(1, 1)),
+            (DemoMode::Horizontal, PaddingPreset::Alt3) => Some(TabPadding::axes(5, 5)),
+            (DemoMode::Vertical, PaddingPreset::Alt2) => Some(TabPadding::uniform(3)),
+            (DemoMode::Vertical, PaddingPreset::Alt3) => Some(TabPadding::new(1, 1, 2, 2)),
         }
     }
 
     fn padding_label(&self) -> &'static str {
-        match self.mode {
-            DemoMode::Horizontal => match self.padding_preset {
-                1 => "default",
-                2 => "1/1",
-                _ => "1/5",
-            },
-            DemoMode::Vertical => match self.padding_preset {
-                1 => "default",
-                2 => "3³",
-                _ => "1,2",
-            },
+        match (self.mode, self.padding_preset) {
+            (_, PaddingPreset::Default) => "default",
+            (DemoMode::Horizontal, PaddingPreset::Alt2) => "1/1",
+            (DemoMode::Horizontal, PaddingPreset::Alt3) => "5/5",
+            (DemoMode::Vertical, PaddingPreset::Alt2) => "3³",
+            (DemoMode::Vertical, PaddingPreset::Alt3) => "1,2",
         }
     }
 
@@ -193,9 +196,13 @@ impl App {
             nav = nav.orientation(TabOrientation::Vertical);
         }
 
+        nav = nav.tab_bar_end(self.tab_bar_end).all_caps(self.all_caps);
+
+        if let Some(pad) = self.padding_for_mode() {
+            nav = nav.padding(pad);
+        }
+
         nav = nav
-            .padding(self.padding_for_mode())
-            .tab_bar_end(self.tab_bar_end)
             .style(Style::new().fg(dim).bg(bg))
             .highlight_style(Style::new().fg(highlight).bg(bg))
             .border_style(Style::new().fg(border_color).bg(bg));
@@ -227,6 +234,7 @@ impl App {
         let indicator_label = if self.show_indicator { "on" } else { "off" };
         let padding_label = self.padding_label();
         let end_label = self.tab_bar_end_label();
+        let caps_label = if self.all_caps { "on" } else { "off" };
 
         let mut spans = Vec::new();
 
@@ -278,6 +286,10 @@ impl App {
             key("2"),
             dim(" end ("),
             Span::styled(end_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("C"),
+            dim(" caps ("),
+            Span::styled(caps_label, Style::new().fg(Color::DarkGray)),
             dim(") | "),
             key("q"),
             dim(" quit"),

@@ -74,6 +74,7 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `margin()` | orientation-specific | Strip inset — see [Margin](#margin) |
 | `padding()` | orientation-specific | Interior tab spacing — see [Padding](#padding) |
 | `tab_bar_end()` | `NoEnd` | Baseline end caps — see [Tab bar end](#tab-bar-end) |
+| `all_caps()` | `false` | Render tab labels in uppercase |
 | `style()` | Unstyled | Inactive tab label style |
 | `highlight_style()` | Unstyled | Active tab label style |
 | `highlight_bold()` | `true` | Auto-apply bold to active tab |
@@ -120,8 +121,8 @@ Use [`TabPadding::axes`] for CSS two-value padding (`padding: 1 1` → top/botto
 | Mode | Horizontal baseline | Vertical rail |
 |------|---------------------|---------------|
 | `NoEnd` | continuous `─` | continuous `│` |
-| `Angl` | `┌` … `┐` | first tab top `┬`/`─`, bottom `└` |
-| `Rnd` | `╭` … `╮` | first tab top `┬`/`─`, bottom `╰` |
+| `Angl` | `├` … `┐` | first tab top `┬`/`─`, bottom `└` |
+| `Rnd` | `├` … `╮` | first tab top `┬`/`─`, bottom `╰` |
 
 ```rust
 use ratatui_comfy_tabs::{TabNav, TabBarEnd};
@@ -143,8 +144,9 @@ cargo run --example demo
 | `M` | Toggle horizontal / vertical mode |
 | `I` | Toggle active-tab indicator |
 | `B` | Toggle rounded / square borders |
-| `1` | Cycle padding preset (3 per mode) |
+| `1` | Cycle padding preset (`default` / alt presets) |
 | `2` | Cycle tab bar end (`none` / `angl` / `rnd`) |
+| `C` | Toggle all-caps tab labels |
 | `q` / `Esc` | Quit |
 
 Run `cargo run --example demo` for the interactive showcase.
