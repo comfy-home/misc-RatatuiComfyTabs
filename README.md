@@ -12,7 +12,7 @@ An advanced tab navigation widget for [Ratatui](https://ratatui.rs) with individ
 - Continuous baseline along the tab strip edge
 - Optional indicator symbol on the active tab (`▸` by default for horizontal tabs)
 - [`vertical_label`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/fn.vertical_label.html) helper for stacked single-character rows
-- Builder API following Ratatui conventions
+- Configurable [`TabMargin`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabMargin.html) and [`TabPadding`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabPadding.html) with orientation-specific defaults
 - Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
@@ -25,7 +25,7 @@ Or add it manually to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ratatui-comfy-tabs = "0.1"
+ratatui-comfy-tabs = "0.2"
 ratatui = "0.30"
 ```
 
@@ -71,12 +71,44 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | Method | Default | Description |
 |--------|---------|-------------|
 | `orientation()` | `Horizontal` | `Horizontal` or `Vertical` tab strip |
+| `margin()` | orientation-specific | Strip inset — see [Margin](#margin) |
+| `padding()` | orientation-specific | Interior tab spacing — see [Padding](#padding) |
 | `style()` | Unstyled | Inactive tab label style |
 | `highlight_style()` | Unstyled | Active tab label style |
 | `highlight_bold()` | `true` | Auto-apply bold to active tab |
 | `border_style()` | Unstyled | Border and baseline style |
 | `indicator()` | `Some("▸")` horizontal / `None` vertical | Active-tab marker; pass `None` to disable |
 | `border_set()` | `ROUNDED` | Border character set (`ROUNDED`, `PLAIN`, etc.) |
+| `horizontal_strip_height()` | — | Minimum render height for horizontal layout |
+| `vertical_rail_width()` | — | Rail width for vertical layout (widest tab) |
+
+### Margin
+
+CSS-like inset for the tab strip along the flow axis:
+
+| Orientation | Axes | Default | Example |
+|-------------|------|---------|---------|
+| Horizontal | left, right (columns) | `0 0` | `.margin(TabMargin::horizontal(2, 0))` |
+| Vertical | top, bottom (rows) | `1 1` | `.margin(TabMargin::vertical(0, 2))` |
+
+Use [`TabMargin::ZERO`] to disable vertical default inset.
+
+### Padding
+
+CSS-like `padding: top bottom left right` inside each tab box (top/bottom = rows, left/right = columns):
+
+| Orientation | Default | Meaning |
+|-------------|---------|---------|
+| Horizontal | `0 0 3 3` | Three columns each side of the label; label on the middle row |
+| Vertical | `1 1 1 1` | One row/column of space between border and label |
+
+```rust
+use ratatui_comfy_tabs::{TabNav, TabPadding, TabMargin};
+
+TabNav::new(&["Files", "Search"], 0)
+    .margin(TabMargin::horizontal(1, 1))
+    .padding(TabPadding::new(0, 0, 2, 2));
+```
 
 ## Demo
 
