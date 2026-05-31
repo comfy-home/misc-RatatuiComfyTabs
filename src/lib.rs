@@ -47,10 +47,22 @@ impl TabMargin {
         Self { start: top, end: bottom }
     }
 
-    /// Default vertical inset: one row above and below the tab rail.
+    /// Default vertical inset: `margin: 0 0` (same as [`TabMargin::ZERO`]).
     pub const fn vertical_default() -> Self {
-        Self::vertical(0, 0)
+        Self::ZERO
     }
+}
+
+/// End-cap style for the tab strip baseline.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TabBarEnd {
+    /// Continuous baseline with no corner caps.
+    #[default]
+    NoEnd,
+    /// Square caps: horizontal `┌`/`┐`; vertical top junction `┬`/`─` and bottom `└`.
+    Angl,
+    /// Rounded caps: horizontal `╭`/`╮`; vertical top junction `┬`/`─` and bottom `╰`.
+    Rnd,
 }
 
 /// Interior spacing inside each tab box.
@@ -93,6 +105,11 @@ impl TabPadding {
     pub const fn uniform(value: u16) -> Self {
         Self::new(value, value, value, value)
     }
+
+    /// CSS-like two-value padding: `padding: <vertical> <horizontal>` (top/bottom, then left/right).
+    pub const fn axes(vertical: u16, horizontal: u16) -> Self {
+        Self::new(vertical, vertical, horizontal, horizontal)
+    }
 }
 
 /// Tab strip layout orientation.
@@ -133,6 +150,7 @@ pub struct TabNav<'a> {
     orientation: TabOrientation,
     margin: Option<TabMargin>,
     padding: Option<TabPadding>,
+    tab_bar_end: Option<TabBarEnd>,
     style: Style,
     highlight_style: Style,
     highlight_bold: bool,
@@ -151,6 +169,7 @@ impl<'a> TabNav<'a> {
             orientation: TabOrientation::Horizontal,
             margin: None,
             padding: None,
+            tab_bar_end: None,
             style: Style::new(),
             highlight_style: Style::new(),
             highlight_bold: true,
@@ -176,6 +195,12 @@ impl<'a> TabNav<'a> {
     /// Interior spacing inside each tab box. Defaults depend on [`TabOrientation`].
     pub fn padding(mut self, padding: TabPadding) -> Self {
         self.padding = Some(padding);
+        self
+    }
+
+    /// Baseline end-cap style. Default: [`TabBarEnd::NoEnd`].
+    pub fn tab_bar_end(mut self, end: TabBarEnd) -> Self {
+        self.tab_bar_end = Some(end);
         self
     }
 
@@ -244,6 +269,10 @@ fn effective_padding(nav: &TabNav<'_>) -> TabPadding {
         TabOrientation::Horizontal => TabPadding::horizontal_default(),
         TabOrientation::Vertical => TabPadding::vertical_default(),
     })
+}
+
+fn effective_tab_bar_end(nav: &TabNav<'_>) -> TabBarEnd {
+    nav.tab_bar_end.unwrap_or(TabBarEnd::NoEnd)
 }
 
 fn label_line_count(label: &str) -> u16 {
@@ -347,6 +376,15 @@ fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
             draw_inactive_horizontal_bottom(left_x, right_x, bot_y, bs, buf);
         }
     }
+
+    apply_horizontal_tab_bar_end(
+        content_left,
+        content_right,
+        bot_y,
+        effective_tab_bar_end(&nav),
+        bs,
+        buf,
+    );
 }
 
 fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
@@ -368,8 +406,12 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
     draw_vertical_baseline(left_x, right_x, content_top, content_bottom, border, bs, buf);
 
     let positions = compute_vertical_tab_positions(nav.tabs, pad, content_top, content_bottom);
+    let mut first_rendered: Option<(usize, u16)> = None;
 
     for (i, (label, &(ty, th))) in nav.tabs.iter().zip(&positions).enumerate() {
+        if first_rendered.is_none() {
+            first_rendered = Some((i, ty));
+        }
         let active = i == nav.selected;
         let top_y = ty;
         let bot_y = ty + th - 1;
@@ -393,6 +435,18 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         } else {
             draw_inactive_vertical_right(left_x, right_x, top_y, bot_y, bs, buf);
         }
+    }
+
+    if let Some((first_index, first_top)) = first_rendered {
+        apply_vertical_tab_bar_end(
+            first_index == nav.selected,
+            first_top,
+            right_x,
+            content_bottom,
+            effective_tab_bar_end(&nav),
+            bs,
+            buf,
+        );
     }
 }
 
@@ -421,6 +475,55 @@ fn draw_horizontal_baseline(
             .set_symbol(border.horizontal_top)
             .set_style(style);
     }
+}
+
+fn apply_horizontal_tab_bar_end(
+    start: u16,
+    end: u16,
+    y: u16,
+    end_style: TabBarEnd,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    if end_style == TabBarEnd::NoEnd || end <= start {
+        return;
+    }
+
+    let (left_cap, right_cap) = match end_style {
+        TabBarEnd::NoEnd => return,
+        TabBarEnd::Angl => ("┌", "┐"),
+        TabBarEnd::Rnd => ("╭", "╮"),
+    };
+
+    buf[(start, y)].set_symbol(left_cap).set_style(style);
+    buf[(end - 1, y)].set_symbol(right_cap).set_style(style);
+}
+
+fn apply_vertical_tab_bar_end(
+    first_active: bool,
+    first_top: u16,
+    right_x: u16,
+    content_bottom: u16,
+    end_style: TabBarEnd,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    if end_style == TabBarEnd::NoEnd || content_bottom == 0 {
+        return;
+    }
+
+    buf[(right_x, first_top)]
+        .set_symbol(if first_active { "─" } else { "┬" })
+        .set_style(style);
+
+    let bottom_cap = match end_style {
+        TabBarEnd::Angl => "└",
+        TabBarEnd::Rnd => "╰",
+        TabBarEnd::NoEnd => return,
+    };
+    buf[(right_x, content_bottom - 1)]
+        .set_symbol(bottom_cap)
+        .set_style(style);
 }
 
 fn draw_vertical_baseline(
@@ -833,13 +936,54 @@ mod tests {
     }
 
     #[test]
+    fn horizontal_tab_bar_end_angl() {
+        let area = Rect::new(0, 0, 20, 3);
+        let mut buf = Buffer::empty(area);
+        TabNav::new(&["Tab"], 0)
+            .tab_bar_end(TabBarEnd::Angl)
+            .render(area, &mut buf);
+        let bot_line = line_str(&buf, 2);
+        assert!(bot_line.starts_with('┌'));
+        assert!(bot_line.ends_with('┐'));
+    }
+
+    #[test]
+    fn horizontal_tab_bar_end_rnd() {
+        let area = Rect::new(0, 0, 20, 3);
+        let mut buf = Buffer::empty(area);
+        TabNav::new(&["Tab"], 0)
+            .tab_bar_end(TabBarEnd::Rnd)
+            .render(area, &mut buf);
+        let bot_line = line_str(&buf, 2);
+        assert!(bot_line.starts_with('╭'));
+        assert!(bot_line.ends_with('╮'));
+    }
+
+    #[test]
+    fn vertical_tab_bar_end_rnd() {
+        let label = vertical_label("Tab");
+        let tabs = [label.as_str()];
+        let nav = TabNav::new(&tabs, 0)
+            .orientation(TabOrientation::Vertical)
+            .tab_bar_end(TabBarEnd::Rnd);
+        let width = nav.vertical_rail_width();
+        let height = tab_height(tabs[0], TabPadding::vertical_default());
+        let area = Rect::new(0, 0, width, height);
+        let mut buf = Buffer::empty(area);
+        nav.render(area, &mut buf);
+        let right_col = col_str(&buf, width - 1);
+        assert!(right_col.starts_with('─'));
+        assert!(right_col.ends_with('╰'));
+    }
+
+    #[test]
     fn vertical_default_indicator_disabled() {
         let label = vertical_label("Tab");
         let tabs = [label.as_str()];
         let nav = TabNav::new(&tabs, 0).orientation(TabOrientation::Vertical);
         let width = nav.vertical_rail_width();
         let height = tab_height(tabs[0], TabPadding::vertical_default());
-        let buf = render_vertical(&tabs, 0, width, height + 2);
+        let buf = render_vertical(&tabs, 0, width, height);
         let label_col = col_str(&buf, 2);
         assert!(!label_col.contains('▸'));
     }
@@ -851,7 +995,7 @@ mod tests {
         let pad = TabPadding::vertical_default();
         let width = tab_width(label, pad);
         let height = tab_height(label, pad);
-        let area = Rect::new(0, 0, width, height + 2);
+        let area = Rect::new(0, 0, width, height);
         let mut buf = Buffer::empty(area);
         TabNav::new(&[label], 0)
             .orientation(TabOrientation::Vertical)
@@ -862,8 +1006,8 @@ mod tests {
         assert!(label_col.contains("L"));
         assert!(label_col.contains("o"));
         assert!(label_col.contains("g"));
-        assert_eq!(buf[(2, 2)].symbol(), "▸");
-        assert_eq!(buf[(2, 3)].symbol(), "L");
+        assert_eq!(buf[(2, 1)].symbol(), "▸");
+        assert_eq!(buf[(2, 2)].symbol(), "L");
     }
 
     #[test]
@@ -873,8 +1017,8 @@ mod tests {
         let nav = TabNav::new(&tabs, 0).orientation(TabOrientation::Vertical);
         let width = nav.vertical_rail_width();
         let height = tab_height(tabs[0], TabPadding::vertical_default());
-        let buf = render_vertical(&tabs, 0, width, height + 2);
-        let top_line = line_str(&buf, 1);
+        let buf = render_vertical(&tabs, 0, width, height);
+        let top_line = line_str(&buf, 0);
 
         assert!(top_line.starts_with('╭'));
         assert!(top_line.ends_with('╯'));
@@ -887,10 +1031,8 @@ mod tests {
         let nav = TabNav::new(&tabs, 0).orientation(TabOrientation::Vertical);
         let width = nav.vertical_rail_width();
         let height = tab_height(tabs[0], TabPadding::vertical_default());
-        let buf = render_vertical(&tabs, 0, width, height + 2);
-        let tab_top = effective_margin(&TabNav::new(&tabs, 0).orientation(TabOrientation::Vertical)).start;
-        let tab_bottom = tab_top + height - 1;
-        let active_col: String = (tab_top..=tab_bottom)
+        let buf = render_vertical(&tabs, 0, width, height);
+        let active_col: String = (0..height)
             .map(|y| buf[(width - 1, y)].symbol().to_string())
             .collect();
         let glyphs: Vec<char> = active_col.chars().collect();
@@ -909,7 +1051,7 @@ mod tests {
         let pad = TabPadding::vertical_default();
         let width = tab_width(first, pad);
         let height = tab_height(first, pad) + tab_height(second, pad);
-        let buf = render_vertical(&[first, second], 1, width, height + 2);
+        let buf = render_vertical(&[first, second], 1, width, height);
         let right_col = col_str(&buf, width - 1);
 
         assert!(right_col.contains('┤'));
@@ -924,7 +1066,7 @@ mod tests {
         let pad = TabPadding::vertical_default();
         let width = tab_width(tall, pad);
         let height = tab_height(tall, pad);
-        let buf = render_vertical(&[tall, also], 0, width, height + 2);
+        let buf = render_vertical(&[tall, also], 0, width, height);
         let col = col_str(&buf, 2);
 
         assert!(col.contains('A'));
