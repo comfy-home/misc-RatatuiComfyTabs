@@ -73,6 +73,7 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `orientation()` | `Horizontal` | `Horizontal` or `Vertical` tab strip |
 | `margin()` | orientation-specific | Strip inset — see [Margin](#margin) |
 | `padding()` | orientation-specific | Interior tab spacing — see [Padding](#padding) |
+| `tab_bar_end()` | `NoEnd` | Baseline end caps — see [Tab bar end](#tab-bar-end) |
 | `style()` | Unstyled | Inactive tab label style |
 | `highlight_style()` | Unstyled | Active tab label style |
 | `highlight_bold()` | `true` | Auto-apply bold to active tab |
@@ -89,9 +90,9 @@ CSS-like inset for the tab strip along the flow axis:
 | Orientation | Axes | Default | Example |
 |-------------|------|---------|---------|
 | Horizontal | left, right (columns) | `0 0` | `.margin(TabMargin::horizontal(2, 0))` |
-| Vertical | top, bottom (rows) | `1 1` | `.margin(TabMargin::vertical(0, 2))` |
+| Vertical | top, bottom (rows) | `0 0` | `.margin(TabMargin::vertical(0, 2))` |
 
-Use [`TabMargin::ZERO`] to disable vertical default inset.
+Both orientations default to [`TabMargin::ZERO`].
 
 ### Padding
 
@@ -110,6 +111,24 @@ TabNav::new(&["Files", "Search"], 0)
     .padding(TabPadding::new(0, 0, 2, 2));
 ```
 
+Use [`TabPadding::axes`] for CSS two-value padding (`padding: 1 1` → top/bottom 1, left/right 1).
+
+### Tab bar end
+
+[`TabBarEnd`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabBarEnd.html) styles the baseline end caps:
+
+| Mode | Horizontal baseline | Vertical rail |
+|------|---------------------|---------------|
+| `NoEnd` | continuous `─` | continuous `│` |
+| `Angl` | `┌` … `┐` | first tab top `┬`/`─`, bottom `└` |
+| `Rnd` | `╭` … `╮` | first tab top `┬`/`─`, bottom `╰` |
+
+```rust
+use ratatui_comfy_tabs::{TabNav, TabBarEnd};
+
+TabNav::new(&["A", "B"], 0).tab_bar_end(TabBarEnd::Rnd);
+```
+
 ## Demo
 
 ```bash
@@ -124,6 +143,8 @@ cargo run --example demo
 | `M` | Toggle horizontal / vertical mode |
 | `I` | Toggle active-tab indicator |
 | `B` | Toggle rounded / square borders |
+| `1` | Cycle padding preset (3 per mode) |
+| `2` | Cycle tab bar end (`none` / `angl` / `rnd`) |
 | `q` / `Esc` | Quit |
 
 Run `cargo run --example demo` for the interactive showcase.

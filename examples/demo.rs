@@ -11,7 +11,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
-use ratatui_comfy_tabs::{TabNav, TabOrientation, vertical_label};
+use ratatui_comfy_tabs::{TabBarEnd, TabNav, TabOrientation, TabPadding, vertical_label};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -52,6 +52,8 @@ struct App {
     mode: DemoMode,
     border_kind: BorderKind,
     show_indicator: bool,
+    padding_preset: u8,
+    tab_bar_end: TabBarEnd,
     vertical_labels: Vec<String>,
 }
 
@@ -81,6 +83,22 @@ impl App {
                         self.border_kind = match self.border_kind {
                             BorderKind::Rounded => BorderKind::Square,
                             BorderKind::Square => BorderKind::Rounded,
+                        };
+                    }
+
+                    KeyCode::Char('1') => {
+                        self.padding_preset = match self.padding_preset {
+                            1 => 2,
+                            2 => 3,
+                            _ => 1,
+                        };
+                    }
+
+                    KeyCode::Char('2') => {
+                        self.tab_bar_end = match self.tab_bar_end {
+                            TabBarEnd::NoEnd => TabBarEnd::Angl,
+                            TabBarEnd::Angl => TabBarEnd::Rnd,
+                            TabBarEnd::Rnd => TabBarEnd::NoEnd,
                         };
                     }
 
@@ -126,6 +144,44 @@ impl App {
         set
     }
 
+    fn padding_for_mode(&self) -> TabPadding {
+        match self.mode {
+            DemoMode::Horizontal => match self.padding_preset {
+                1 => TabPadding::horizontal_default(),
+                2 => TabPadding::axes(1, 1),
+                _ => TabPadding::axes(1, 5),
+            },
+            DemoMode::Vertical => match self.padding_preset {
+                1 => TabPadding::vertical_default(),
+                2 => TabPadding::uniform(3),
+                _ => TabPadding::new(1, 1, 2, 2),
+            },
+        }
+    }
+
+    fn padding_label(&self) -> &'static str {
+        match self.mode {
+            DemoMode::Horizontal => match self.padding_preset {
+                1 => "default",
+                2 => "1/1",
+                _ => "1/5",
+            },
+            DemoMode::Vertical => match self.padding_preset {
+                1 => "default",
+                2 => "3³",
+                _ => "1,2",
+            },
+        }
+    }
+
+    fn tab_bar_end_label(&self) -> &'static str {
+        match self.tab_bar_end {
+            TabBarEnd::NoEnd => "none",
+            TabBarEnd::Angl => "angl",
+            TabBarEnd::Rnd => "rnd",
+        }
+    }
+
     fn styled_tab_nav<'a>(&self, tabs: &'a [&'a str]) -> TabNav<'a> {
         let bg = Color::Rgb(20, 20, 40);
         let highlight = Color::LightBlue;
@@ -138,6 +194,8 @@ impl App {
         }
 
         nav = nav
+            .padding(self.padding_for_mode())
+            .tab_bar_end(self.tab_bar_end)
             .style(Style::new().fg(dim).bg(bg))
             .highlight_style(Style::new().fg(highlight).bg(bg))
             .border_style(Style::new().fg(border_color).bg(bg));
@@ -151,9 +209,7 @@ impl App {
 
     fn vertical_rail_width(&self) -> u16 {
         let label_refs: Vec<&str> = self.vertical_labels.iter().map(String::as_str).collect();
-        TabNav::new(&label_refs, self.selected)
-            .orientation(TabOrientation::Vertical)
-            .vertical_rail_width()
+        self.styled_tab_nav(&label_refs).vertical_rail_width()
     }
 
     fn shortcut_footer_line(&self) -> Line<'static> {
@@ -169,6 +225,8 @@ impl App {
             DemoMode::Vertical => "vertical",
         };
         let indicator_label = if self.show_indicator { "on" } else { "off" };
+        let padding_label = self.padding_label();
+        let end_label = self.tab_bar_end_label();
 
         let mut spans = Vec::new();
 
@@ -212,6 +270,14 @@ impl App {
             key("B"),
             dim(" border ("),
             Span::styled(border_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("1"),
+            dim(" pad ("),
+            Span::styled(padding_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("2"),
+            dim(" end ("),
+            Span::styled(end_label, Style::new().fg(Color::DarkGray)),
             dim(") | "),
             key("q"),
             dim(" quit"),
@@ -316,7 +382,7 @@ impl Widget for &App {
 
 impl App {
     fn render_horizontal(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
-        let strip_height = TabNav::new(TABS, self.selected).horizontal_strip_height();
+        let strip_height = self.styled_tab_nav(TABS).horizontal_strip_height();
         let [tabs, content] = Layout::vertical([
             Constraint::Length(strip_height),
             Constraint::Fill(1),

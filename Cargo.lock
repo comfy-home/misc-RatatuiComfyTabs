@@ -1046,7 +1046,7 @@ dependencies = [
 
 [[package]]
 name = "ratatui-comfy-tabs"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "color-eyre",
  "ratatui",
