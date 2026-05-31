@@ -10,8 +10,13 @@ use ratatui::{
     symbols::border,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
+    Frame,
 };
-use ratatui_comfy_tabs::{TabBarEnd, TabNav, TabOrientation, TabPadding, vertical_label};
+use ratatui_comfy_tabs::{
+    OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabNav, TabNavState, TabOrientation,
+    TabPadding, vertical_label,
+};
+use ratatui_core::widgets::StatefulWidget;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -50,14 +55,17 @@ enum PaddingPreset {
 
 #[derive(Default)]
 struct App {
-    selected: usize,
+    tab_state: TabNavState,
     mode: DemoMode,
     border_kind: BorderKind,
     show_indicator: bool,
     padding_preset: PaddingPreset,
     tab_bar_end: TabBarEnd,
     all_caps: bool,
+    overflow: OverflowPolicy,
+    narrow_tabs: bool,
     vertical_labels: Vec<String>,
+    last_tab_strip_area: Rect,
 }
 
 impl App {
@@ -65,7 +73,7 @@ impl App {
         self.vertical_labels = TABS.iter().map(|label| vertical_label(label)).collect();
 
         loop {
-            terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
+            terminal.draw(|frame| self.draw(frame))?;
 
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -109,25 +117,65 @@ impl App {
                         };
                     }
 
+                    KeyCode::Char('o') | KeyCode::Char('O') => {
+                        self.overflow = match self.overflow {
+                            OverflowPolicy::Truncate => OverflowPolicy::Scroll,
+                            OverflowPolicy::Scroll => OverflowPolicy::Truncate,
+                        };
+                        self.tab_state.scroll_offset = 0;
+                    }
+
+                    KeyCode::Char('w') | KeyCode::Char('W') => {
+                        self.narrow_tabs = !self.narrow_tabs;
+                    }
+
                     KeyCode::BackTab => {
-                        self.selected = (self.selected + TABS.len() - 1) % TABS.len();
+                        self.tab_state.select_direction_wrapping(
+                            TabDirection::Previous,
+                            TABS.len(),
+                        );
                     }
                     KeyCode::Tab => {
-                        self.selected = (self.selected + 1) % TABS.len();
+                        self.tab_state.select_direction_wrapping(
+                            TabDirection::Next,
+                            TABS.len(),
+                        );
                     }
 
                     KeyCode::Left | KeyCode::Char('h') if self.mode == DemoMode::Horizontal => {
-                        self.selected = self.selected.saturating_sub(1);
+                        self.tab_state.select_direction(
+                            TabAxis::Decrease.direction(),
+                            TABS.len(),
+                        );
                     }
                     KeyCode::Right | KeyCode::Char('l') if self.mode == DemoMode::Horizontal => {
-                        self.selected = (self.selected + 1).min(TABS.len() - 1);
+                        self.tab_state.select_direction(
+                            TabAxis::Increase.direction(),
+                            TABS.len(),
+                        );
                     }
 
                     KeyCode::Up | KeyCode::Char('k') if self.mode == DemoMode::Vertical => {
-                        self.selected = self.selected.saturating_sub(1);
+                        self.tab_state.select_direction(
+                            TabAxis::Decrease.direction(),
+                            TABS.len(),
+                        );
                     }
                     KeyCode::Down | KeyCode::Char('j') if self.mode == DemoMode::Vertical => {
-                        self.selected = (self.selected + 1).min(TABS.len() - 1);
+                        self.tab_state.select_direction(
+                            TabAxis::Increase.direction(),
+                            TABS.len(),
+                        );
+                    }
+
+                    KeyCode::Char('[') => {
+                        self.tab_state.scroll_prev();
+                    }
+                    KeyCode::Char(']') => {
+                        self.tab_state.scroll_next(
+                            &self.styled_tab_nav(TABS),
+                            self.last_tab_strip_area,
+                        );
                     }
 
                     _ => {}
@@ -179,13 +227,22 @@ impl App {
         }
     }
 
+    fn overflow_label(&self) -> &'static str {
+        match self.overflow {
+            OverflowPolicy::Truncate => "truncate",
+            OverflowPolicy::Scroll => "scroll",
+        }
+    }
+
     fn styled_tab_nav<'a>(&self, tabs: &'a [&'a str]) -> TabNav<'a> {
         let bg = Color::Rgb(20, 20, 40);
         let highlight = Color::LightBlue;
         let dim = Color::DarkGray;
         let border_color = Color::Rgb(60, 60, 100);
 
-        let mut nav = TabNav::new(tabs, self.selected).border_set(self.tab_border_set());
+        let mut nav = TabNav::new(tabs, self.tab_state.selected)
+            .border_set(self.tab_border_set())
+            .overflow(self.overflow);
         if self.mode == DemoMode::Vertical {
             nav = nav.orientation(TabOrientation::Vertical);
         }
@@ -229,6 +286,8 @@ impl App {
         let padding_label = self.padding_label();
         let end_label = self.tab_bar_end_label();
         let caps_label = if self.all_caps { "on" } else { "off" };
+        let overflow_label = self.overflow_label();
+        let width_label = if self.narrow_tabs { "narrow" } else { "wide" };
 
         let mut spans = Vec::new();
 
@@ -285,6 +344,18 @@ impl App {
             dim(" caps ("),
             Span::styled(caps_label, Style::new().fg(Color::DarkGray)),
             dim(") | "),
+            key("O"),
+            dim(" overflow ("),
+            Span::styled(overflow_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("W"),
+            dim(" width ("),
+            Span::styled(width_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("["),
+            dim("/"),
+            key("]"),
+            dim(" scroll | "),
             key("q"),
             dim(" quit"),
         ]);
@@ -308,7 +379,7 @@ impl App {
     }
 
     fn paint_vertical_content_top_border(&self, area: Rect, buf: &mut Buffer, border_color: Color) {
-        let title = TABS[self.selected];
+        let title = TABS[self.tab_state.selected];
         let top = format!("─ {title} ");
         let style = Style::new().fg(border_color);
         let border_set = self.content_border_set();
@@ -342,7 +413,7 @@ impl App {
         bg: Color,
         body: &str,
     ) {
-        let block = self.content_block(TABS[self.selected], border_color, bg);
+        let block = self.content_block(TABS[self.tab_state.selected], border_color, bg);
         let inner = block.inner(area);
         block.render(area, buf);
 
@@ -361,12 +432,13 @@ impl App {
     }
 }
 
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
+impl App {
+    fn draw(&mut self, frame: &mut Frame) {
+        let area = frame.area();
         let bg = Color::Rgb(20, 20, 40);
         let border_color = Color::Rgb(60, 60, 100);
 
-        Block::new().style(Style::new().bg(bg)).render(area, buf);
+        Block::new().style(Style::new().bg(bg)).render(area, frame.buffer_mut());
 
         let [header, body] =
             Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
@@ -375,46 +447,88 @@ impl Widget for &App {
             .bold()
             .fg(Color::LightBlue)
             .into_centered_line()
-            .render(header, buf);
+            .render(header, frame.buffer_mut());
 
         match self.mode {
-            DemoMode::Horizontal => self.render_horizontal(body, buf, bg, border_color),
-            DemoMode::Vertical => self.render_vertical(body, buf, bg, border_color),
+            DemoMode::Horizontal => self.render_horizontal(frame, body, bg, border_color),
+            DemoMode::Vertical => self.render_vertical(frame, body, bg, border_color),
         }
     }
-}
 
-impl App {
-    fn render_horizontal(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
+    fn render_horizontal(
+        &mut self,
+        frame: &mut Frame,
+        area: Rect,
+        bg: Color,
+        border_color: Color,
+    ) {
         let strip_height = self.styled_tab_nav(TABS).horizontal_strip_height();
         let [tabs, content] =
             Layout::vertical([Constraint::Length(strip_height), Constraint::Fill(1)]).areas(area);
 
-        self.styled_tab_nav(TABS).render(tabs, buf);
+        let tab_area = if self.narrow_tabs {
+            Rect {
+                width: tabs.width.min(42),
+                ..tabs
+            }
+        } else {
+            tabs
+        };
+
+        self.last_tab_strip_area = tab_area;
+        let nav = self.styled_tab_nav(TABS);
+        self.tab_state
+            .ensure_selected_visible(&nav, self.last_tab_strip_area);
+        StatefulWidget::render(nav, tab_area, frame.buffer_mut(), &mut self.tab_state);
 
         self.render_content_pane(
             content,
-            buf,
+            frame.buffer_mut(),
             border_color,
             bg,
-            &format!("Selected: {}", TABS[self.selected]),
+            &format!(
+                "Selected: {} (scroll {})",
+                TABS[self.tab_state.selected], self.tab_state.scroll_offset
+            ),
         );
     }
 
-    fn render_vertical(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
+    fn render_vertical(
+        &mut self,
+        frame: &mut Frame,
+        area: Rect,
+        bg: Color,
+        border_color: Color,
+    ) {
         let rail_width = self.vertical_rail_width();
         let [tabs, content] =
             Layout::horizontal([Constraint::Length(rail_width), Constraint::Fill(1)]).areas(area);
 
+        let tab_area = if self.narrow_tabs {
+            Rect {
+                height: tabs.height.min(14),
+                ..tabs
+            }
+        } else {
+            tabs
+        };
+
         let label_refs: Vec<&str> = self.vertical_labels.iter().map(String::as_str).collect();
-        self.styled_tab_nav(&label_refs).render(tabs, buf);
+        self.last_tab_strip_area = tab_area;
+        let nav = self.styled_tab_nav(&label_refs);
+        self.tab_state
+            .ensure_selected_visible(&nav, self.last_tab_strip_area);
+        StatefulWidget::render(nav, tab_area, frame.buffer_mut(), &mut self.tab_state);
 
         self.render_content_pane(
             content,
-            buf,
+            frame.buffer_mut(),
             border_color,
             bg,
-            &format!("Selected: {}", TABS[self.selected]),
+            &format!(
+                "Selected: {} (scroll {})",
+                TABS[self.tab_state.selected], self.tab_state.scroll_offset
+            ),
         );
     }
 }
