@@ -150,11 +150,10 @@ impl App {
     }
 
     fn vertical_rail_width(&self) -> u16 {
-        self.vertical_labels
-            .iter()
-            .map(|label| label.lines().map(|line| line.len()).max().unwrap_or(0) as u16 + 8)
-            .max()
-            .unwrap_or(8)
+        let label_refs: Vec<&str> = self.vertical_labels.iter().map(String::as_str).collect();
+        TabNav::new(&label_refs, self.selected)
+            .orientation(TabOrientation::Vertical)
+            .vertical_rail_width()
     }
 
     fn shortcut_footer_line(&self) -> Line<'static> {
@@ -317,8 +316,12 @@ impl Widget for &App {
 
 impl App {
     fn render_horizontal(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
-        let [tabs, content] =
-            Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(area);
+        let strip_height = TabNav::new(TABS, self.selected).horizontal_strip_height();
+        let [tabs, content] = Layout::vertical([
+            Constraint::Length(strip_height),
+            Constraint::Fill(1),
+        ])
+        .areas(area);
 
         self.styled_tab_nav(TABS).render(tabs, buf);
 
