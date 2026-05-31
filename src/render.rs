@@ -13,15 +13,15 @@ use ratatui_core::{
     widgets::{StatefulWidget, Widget},
 };
 
+use crate::TAB_BORDER;
 use crate::config::{TabBarEnd, TabOrientation, TabPadding};
 use crate::layout::{
-    auto_vertical_tab_height, char_display_width, compute_viewport, effective_indicator,
-    effective_margin, effective_padding, effective_tab_bar_end, horizontal_strip_height,
-    label_char, label_origin, vertical_rail_width, TabViewport,
+    TabViewport, auto_vertical_tab_height, char_display_width, compute_viewport,
+    effective_indicator, effective_margin, effective_padding, effective_tab_bar_end,
+    horizontal_strip_height, label_char, label_origin, vertical_rail_width,
 };
 use crate::nav::TabNav;
 use crate::state::TabNavState;
-use crate::TAB_BORDER;
 
 impl Widget for TabNav<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
