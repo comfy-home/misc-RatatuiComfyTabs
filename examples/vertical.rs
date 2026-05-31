@@ -1,3 +1,5 @@
+//! Deprecated — use `cargo run --example demo` instead.
+
 use ratatui::{
     crossterm::event::{self, Event, KeyCode},
     prelude::{Buffer, Constraint, Layout, Rect, Stylize, Widget},
