@@ -4,6 +4,8 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 
 ![demo](assets/demo.gif)
 
+
+
 ## Features
 
 - Horizontal tabs above content or vertical tabs in a left rail beside content
@@ -66,14 +68,14 @@ ratatui-comfy-tabs
     │   ├── orientation()          Horizontal | Vertical
     │   ├── margin()               TabMargin (strip inset on flow axis)
     │   ├── padding()              TabPadding (interior tab box spacing)
-    │   ├── tab_bar_end()          NoEnd | Angl | Rnd
+    │   ├── tab_bar_end()          NoEnd | Sqr | Rnd
     │   ├── all_caps()             bool
     │   ├── style()                inactive label Style
     │   ├── highlight_style()      active label Style
     │   ├── highlight_bold()       bool (default true)
     │   ├── border_style()         border + baseline Style
     │   ├── indicator()            Option<&str>  (▸ horizontal default; none vertical)
-    │   ├── border_set()           ROUNDED | PLAIN | …
+    │   ├── border_set()           Rnd | Sqr
     │   ├── tab_widths() / tab_heights()   per-tab size overrides
     │   ├── overflow()             Truncate | Scroll
     │   ├── scroll_offset()        usize (stateless Scroll mode only)
@@ -158,7 +160,7 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `highlight_bold()` | `true` | Auto-apply bold to active tab |
 | `border_style()` | Unstyled | Border and baseline style |
 | `indicator()` | `Some("▸")` horizontal / `None` vertical | Active-tab marker; pass `None` to disable |
-| `border_set()` | `ROUNDED` | Border character set (`ROUNDED`, `PLAIN`, etc.) |
+| `border_set()` | `tab_border::Rnd` | Border character set — [`tab_border::Rnd`] or [`tab_border::Sqr`] |
 | `tab_widths()` | auto | Override horizontal tab widths (columns) |
 | `tab_heights()` | auto | Override vertical tab heights (rows) |
 | `tab_rects(area)` | — | Layout `Rect` per visible tab (for hit targets) |
@@ -208,13 +210,23 @@ Use [`TabPadding::axes`] for CSS two-value padding (`padding: 1 1` → top/botto
 | Mode | Horizontal baseline | Vertical rail |
 |------|---------------------|---------------|
 | `NoEnd` | continuous `─` | continuous `│` |
-| `Angl` | `├` … `┐` | first tab top `┬`/`─`, bottom `└` |
+| `Sqr` | `├` … `┐` | first tab top `┬`/`─`, bottom `└` |
 | `Rnd` | `├` … `╮` | first tab top `┬`/`─`, bottom `╰` |
 
 ```rust
 use ratatui_comfy_tabs::{TabNav, TabBarEnd};
 
 TabNav::new(&["A", "B"], 0).tab_bar_end(TabBarEnd::Rnd);
+```
+
+### Border style
+
+[`tab_border::Rnd`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/tab_border/constant.Rnd.html) and [`tab_border::Sqr`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/tab_border/constant.Sqr.html) are aliases for Ratatui's `symbols::border::ROUNDED` and `PLAIN`:
+
+```rust
+use ratatui_comfy_tabs::{TabNav, tab_border};
+
+TabNav::new(&["A", "B"], 0).border_set(tab_border::Sqr);
 ```
 
 ### Tab sizing and geometry
@@ -334,9 +346,9 @@ cargo run --example demo
 | `Tab` / `BackTab`  | Cycle tabs                                     |
 | `M`                | Toggle horizontal / vertical mode              |
 | `I`                | Toggle active-tab indicator                    |
-| `B`                | Toggle rounded / square borders                |
+| `B`                | Toggle `tab_border::Rnd` / `Sqr` borders       |
 | `1`                | Cycle padding preset (`default` / alt presets) |
-| `2`                | Cycle tab bar end (`none` / `angl` / `rnd`)    |
+| `2`                | Cycle tab bar end (`none` / `sqr` / `rnd`)     |
 | `C`                | Toggle all-caps tab labels                     |
 | `O`                | Toggle overflow (`truncate` / `scroll`)        |
 | `W`                | Toggle narrow tab strip (forces overflow)      |
