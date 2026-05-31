@@ -18,6 +18,7 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 - [`OverflowPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.OverflowPolicy.html) truncate or scroll with edge affordances (`‹` / `›` / `…`)
 - Unicode-aware label width via `unicode-width` (CJK and wide glyphs size correctly)
 - [`StatefulWidget`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) with [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) and [`TabAxis`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) navigation helpers
+- Mouse wheel tab switching over the strip via [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) (enabled by default)
 - Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
@@ -92,6 +93,7 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `overflow()` | `Truncate` | `Truncate` or `Scroll` when tabs exceed space |
 | `scroll_offset()` | `0` | First visible tab for stateless scroll mode |
 | `overflow_affordance()` | `true` | `‹` / `›` / `…` at clipped edges |
+| `mouse_wheel()` | `true` | Allow wheel tab switching over the strip |
 | `auto_tab_width()` / `auto_tab_height()` | — | Default size for one tab index |
 | `horizontal_strip_height()` | — | Minimum render height for horizontal layout |
 | `vertical_rail_width()` | — | Rail width for vertical layout (widest tab) |
@@ -193,6 +195,36 @@ state.select_direction(TabDirection::Previous, 5);
 
 Use [`TabAxis::Decrease`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) / [`TabAxis::Increase`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) to map arrow keys by orientation (`Decrease` → previous tab, `Increase` → next).
 
+### Mouse wheel
+
+When [`.mouse_wheel(true)`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.mouse_wheel) (default), forward scroll events to [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) while the pointer is inside the tab strip [`Rect`](https://docs.rs/ratatui-core/latest/ratatui_core/layout/struct.Rect.html):
+
+```rust
+use ratatui_comfy_tabs::{TabNav, TabNavState, TabWheelDirection};
+
+// In your crossterm / ratatui event loop, after computing `strip_area`:
+state.handle_mouse_wheel(
+    &nav,
+    strip_area,
+    mouse.column,
+    mouse.row,
+    TabWheelDirection::Down,
+);
+```
+
+Returns `true` when the event was consumed. Disable per widget with `.mouse_wheel(false)`.
+
+### Crate layout
+
+| Module | Role |
+|--------|------|
+| `config` | Margin, padding, orientation, overflow, direction types |
+| `nav` | [`TabNav`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) builder and geometry API |
+| `state` | [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) selection, scroll, and input helpers |
+| `layout` | Sizing and viewport math (internal) |
+| `render` | Widget drawing (internal) |
+| `label` | [`vertical_label`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/fn.vertical_label.html) helper |
+
 ## Demo
 
 ```bash
@@ -212,7 +244,9 @@ cargo run --example demo
 | `C` | Toggle all-caps tab labels |
 | `O` | Toggle overflow (`truncate` / `scroll`) |
 | `W` | Toggle narrow tab strip (forces overflow) |
+| `Y` | Toggle mouse wheel tab switching |
 | `[` / `]` | Scroll tab window (scroll mode) |
+| Scroll wheel | Previous / next tab while hovering tabs |
 | `q` / `Esc` | Quit |
 
 Run `cargo run --example demo` for the interactive showcase.
