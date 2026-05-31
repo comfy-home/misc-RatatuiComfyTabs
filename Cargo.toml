@@ -4,7 +4,6 @@ authors = ["ComfyHome™ <dev@comfyhome.io>"]
 version = "0.3.3"
 edition = "2024"
 description = "An advanced tab navigation widget for Ratatui."
-license = "LicenseRef-SA-PS-DA-v1.0"
 license-file = "LICENSE.md"
 keywords = ["tui", "ratatui", "tabs", "widget", "comfy"]
 categories = ["command-line-interface"]
