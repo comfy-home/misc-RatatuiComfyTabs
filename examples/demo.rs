@@ -21,13 +21,7 @@ fn main() -> color_eyre::Result<()> {
 }
 
 const TABS: &[&str] = &[
-    "Overview",
-    "Nodes",
-    "Network",
-    "Content",
-    "UI",
-    "Config",
-    "Logs",
+    "Overview", "Nodes", "Network", "Content", "UI", "Config", "Logs",
 ];
 
 const INDICATOR: &str = "▸";
@@ -307,9 +301,7 @@ impl App {
         if self.mode == DemoMode::Vertical {
             block = block.borders(Borders::TOP | Borders::RIGHT | Borders::BOTTOM);
         } else {
-            block = block
-                .borders(Borders::ALL)
-                .title(format!(" {} ", title));
+            block = block.borders(Borders::ALL).title(format!(" {} ", title));
         }
 
         block
@@ -395,11 +387,8 @@ impl Widget for &App {
 impl App {
     fn render_horizontal(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
         let strip_height = self.styled_tab_nav(TABS).horizontal_strip_height();
-        let [tabs, content] = Layout::vertical([
-            Constraint::Length(strip_height),
-            Constraint::Fill(1),
-        ])
-        .areas(area);
+        let [tabs, content] =
+            Layout::vertical([Constraint::Length(strip_height), Constraint::Fill(1)]).areas(area);
 
         self.styled_tab_nav(TABS).render(tabs, buf);
 
