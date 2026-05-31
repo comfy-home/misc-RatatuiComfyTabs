@@ -1,7 +1,6 @@
 //! Interactive demo for ratatui-comfy-tabs.
 //!
-//! Keys: `h`/`l` or ←/→ (horizontal), `j`/`k` or ↑/↓ (vertical), `Tab`/`BackTab` cycle,
-//! `M` toggle horizontal/vertical mode, `I` toggle active-tab indicator, `q` quit.
+//! Run: `cargo run --example demo`
 
 use ratatui::{
     crossterm::event::{self, Event, KeyCode},
@@ -9,6 +8,7 @@ use ratatui::{
     prelude::{Buffer, Constraint, Layout, Rect, Stylize, Widget},
     style::{Color, Style},
     symbols::border,
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
 use ratatui_comfy_tabs::{TabNav, TabOrientation, vertical_label};
@@ -39,10 +39,18 @@ enum DemoMode {
     Vertical,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum BorderKind {
+    #[default]
+    Rounded,
+    Square,
+}
+
 #[derive(Default)]
 struct App {
     selected: usize,
     mode: DemoMode,
+    border_kind: BorderKind,
     show_indicator: bool,
     vertical_labels: Vec<String>,
 }
@@ -67,6 +75,13 @@ impl App {
 
                     KeyCode::Char('i') | KeyCode::Char('I') => {
                         self.show_indicator = !self.show_indicator;
+                    }
+
+                    KeyCode::Char('b') | KeyCode::Char('B') => {
+                        self.border_kind = match self.border_kind {
+                            BorderKind::Rounded => BorderKind::Square,
+                            BorderKind::Square => BorderKind::Rounded,
+                        };
                     }
 
                     KeyCode::BackTab => {
@@ -96,13 +111,28 @@ impl App {
         }
     }
 
+    fn tab_border_set(&self) -> border::Set<'static> {
+        match self.border_kind {
+            BorderKind::Rounded => border::ROUNDED,
+            BorderKind::Square => border::PLAIN,
+        }
+    }
+
+    fn content_border_set(&self) -> border::Set<'static> {
+        let mut set = self.tab_border_set();
+        if self.mode == DemoMode::Vertical {
+            set.top_left = "─";
+        }
+        set
+    }
+
     fn styled_tab_nav<'a>(&self, tabs: &'a [&'a str]) -> TabNav<'a> {
         let bg = Color::Rgb(20, 20, 40);
         let highlight = Color::LightBlue;
         let dim = Color::DarkGray;
-        let border = Color::Rgb(60, 60, 100);
+        let border_color = Color::Rgb(60, 60, 100);
 
-        let mut nav = TabNav::new(tabs, self.selected);
+        let mut nav = TabNav::new(tabs, self.selected).border_set(self.tab_border_set());
         if self.mode == DemoMode::Vertical {
             nav = nav.orientation(TabOrientation::Vertical);
         }
@@ -110,7 +140,7 @@ impl App {
         nav = nav
             .style(Style::new().fg(dim).bg(bg))
             .highlight_style(Style::new().fg(highlight).bg(bg))
-            .border_style(Style::new().fg(border).bg(bg));
+            .border_style(Style::new().fg(border_color).bg(bg));
 
         if self.show_indicator {
             nav.indicator(Some(INDICATOR))
@@ -127,67 +157,137 @@ impl App {
             .unwrap_or(8)
     }
 
-    fn shortcut_footer_text(&self) -> String {
+    fn shortcut_footer_line(&self) -> Line<'static> {
+        let key = |s: &'static str| Span::styled(s, Style::new().fg(Color::Yellow));
+        let dim = |s: &'static str| Span::styled(s, Style::new().fg(Color::DarkGray));
+
+        let border_label = match self.border_kind {
+            BorderKind::Rounded => "rounded",
+            BorderKind::Square => "square",
+        };
         let mode_label = match self.mode {
             DemoMode::Horizontal => "horizontal",
             DemoMode::Vertical => "vertical",
         };
         let indicator_label = if self.show_indicator { "on" } else { "off" };
-        let nav_keys = match self.mode {
-            DemoMode::Horizontal => "h/l or ←/→",
-            DemoMode::Vertical => "j/k or ↑/↓",
-        };
 
-        format!(
-            "{nav_keys} tabs | Tab cycle | M mode ({mode_label}) | I indicator ({indicator_label}) | q quit"
-        )
+        let mut spans = Vec::new();
+
+        match self.mode {
+            DemoMode::Horizontal => {
+                spans.extend([
+                    key("h"),
+                    dim("/"),
+                    key("l"),
+                    dim(" or "),
+                    key("←"),
+                    dim("/"),
+                    key("→"),
+                ]);
+            }
+            DemoMode::Vertical => {
+                spans.extend([
+                    key("j"),
+                    dim("/"),
+                    key("k"),
+                    dim(" or "),
+                    key("↑"),
+                    dim("/"),
+                    key("↓"),
+                ]);
+            }
+        }
+
+        spans.extend([
+            dim(" tabs | "),
+            key("Tab"),
+            dim(" cycle | "),
+            key("M"),
+            dim(" mode ("),
+            Span::styled(mode_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("I"),
+            dim(" indicator ("),
+            Span::styled(indicator_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("B"),
+            dim(" border ("),
+            Span::styled(border_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("q"),
+            dim(" quit"),
+        ]);
+
+        Line::from(spans)
     }
 
-    fn content_block<'a>(&self, title: &'a str, border: Color, bg: Color) -> Block<'a> {
+    fn content_block<'a>(&self, title: &'a str, border_color: Color, bg: Color) -> Block<'a> {
         let mut block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::new().fg(border))
+            .border_set(self.content_border_set())
+            .border_style(Style::new().fg(border_color))
             .style(Style::new().fg(Color::White).bg(bg));
 
         if self.mode == DemoMode::Vertical {
-            let mut border_set = border::ROUNDED;
-            border_set.top_left = "─";
-            block = block
-                .borders(Borders::TOP | Borders::RIGHT | Borders::BOTTOM)
-                .border_set(border_set)
-                .title(format!(" {} ", title))
-                .title_alignment(Alignment::Left);
+            block = block.borders(Borders::TOP | Borders::RIGHT | Borders::BOTTOM);
         } else {
-            block = block.title(format!(" {} ", title));
+            block = block
+                .borders(Borders::ALL)
+                .title(format!(" {} ", title));
         }
 
         block
+    }
+
+    fn paint_vertical_content_top_border(&self, area: Rect, buf: &mut Buffer, border_color: Color) {
+        let title = TABS[self.selected];
+        let top = format!("─ {title} ");
+        let style = Style::new().fg(border_color);
+        let border_set = self.content_border_set();
+
+        for (offset, ch) in top.chars().enumerate() {
+            let x = area.x + offset as u16;
+            if x >= area.right() {
+                break;
+            }
+            buf[(x, area.y)].set_char(ch).set_style(style);
+        }
+
+        for x in (area.x + top.chars().count() as u16)..area.right() {
+            buf[(x, area.y)]
+                .set_symbol(border_set.horizontal_top)
+                .set_style(style);
+        }
+
+        if area.right() > area.x {
+            buf[(area.right() - 1, area.y)]
+                .set_symbol(border_set.top_right)
+                .set_style(style);
+        }
     }
 
     fn render_content_pane(
         &self,
         area: Rect,
         buf: &mut Buffer,
-        border: Color,
+        border_color: Color,
         bg: Color,
         body: &str,
     ) {
-        let block = self.content_block(TABS[self.selected], border, bg);
+        let block = self.content_block(TABS[self.selected], border_color, bg);
         let inner = block.inner(area);
         block.render(area, buf);
 
         if self.mode == DemoMode::Vertical {
-            let style = Style::new().fg(border);
-            buf[(area.x, area.y)].set_symbol("─").set_style(style);
+            self.paint_vertical_content_top_border(area, buf, border_color);
         }
 
         let [main, footer] =
             Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(inner);
 
         Paragraph::new(body).render(main, buf);
-        self.shortcut_footer_text()
-            .dim()
-            .into_centered_line()
+
+        Paragraph::new(self.shortcut_footer_line())
+            .alignment(Alignment::Center)
             .render(footer, buf);
     }
 }
@@ -195,7 +295,7 @@ impl App {
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let bg = Color::Rgb(20, 20, 40);
-        let border = Color::Rgb(60, 60, 100);
+        let border_color = Color::Rgb(60, 60, 100);
 
         Block::new().style(Style::new().bg(bg)).render(area, buf);
 
@@ -209,14 +309,14 @@ impl Widget for &App {
             .render(header, buf);
 
         match self.mode {
-            DemoMode::Horizontal => self.render_horizontal(body, buf, bg, border),
-            DemoMode::Vertical => self.render_vertical(body, buf, bg, border),
+            DemoMode::Horizontal => self.render_horizontal(body, buf, bg, border_color),
+            DemoMode::Vertical => self.render_vertical(body, buf, bg, border_color),
         }
     }
 }
 
 impl App {
-    fn render_horizontal(&self, area: Rect, buf: &mut Buffer, bg: Color, border: Color) {
+    fn render_horizontal(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
         let [tabs, content] =
             Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(area);
 
@@ -225,13 +325,13 @@ impl App {
         self.render_content_pane(
             content,
             buf,
-            border,
+            border_color,
             bg,
             &format!("Selected: {}", TABS[self.selected]),
         );
     }
 
-    fn render_vertical(&self, area: Rect, buf: &mut Buffer, bg: Color, border: Color) {
+    fn render_vertical(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
         let rail_width = self.vertical_rail_width();
         let [tabs, content] =
             Layout::horizontal([Constraint::Length(rail_width), Constraint::Fill(1)]).areas(area);
@@ -242,7 +342,7 @@ impl App {
         self.render_content_pane(
             content,
             buf,
-            border,
+            border_color,
             bg,
             &format!("Selected: {}", TABS[self.selected]),
         );
