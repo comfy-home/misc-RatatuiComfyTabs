@@ -5,7 +5,7 @@
 //!
 //! For details, see the LICENSE file in the repository root.
 
-use ratatui_core::layout::{Position, Rect};
+use ratatui_core::layout::Rect;
 
 use crate::config::{OverflowPolicy, TabDirection, TabWheelDirection};
 use crate::layout::compute_viewport;
@@ -145,11 +145,14 @@ impl TabNavState {
             return false;
         }
 
-        if !strip_area.contains(Position::new(mouse_column, mouse_row)) {
+        if !nav.wheel_hover(strip_area, self.scroll_offset, mouse_column, mouse_row) {
             return false;
         }
 
-        self.select_direction_visible(direction.tab_direction(), nav, strip_area);
+        self.select_direction(direction.tab_direction(), nav.tabs.len());
+        if nav.overflow == OverflowPolicy::Scroll {
+            self.ensure_selected_visible(nav, strip_area);
+        }
         true
     }
 }
