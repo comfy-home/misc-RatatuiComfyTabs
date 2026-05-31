@@ -112,7 +112,7 @@ impl<'a> TabNav<'a> {
             border_style: Style::new(),
             indicator: Some(DEFAULT_INDICATOR),
             indicator_explicit: false,
-            border_set: symbols::border::ROUNDED,
+            border_set: crate::tab_border::Rnd,
             tab_sizes: None,
             overflow: OverflowPolicy::Truncate,
             scroll_offset: 0,
@@ -183,7 +183,7 @@ impl<'a> TabNav<'a> {
         self
     }
 
-    /// Border character set. Default: [`symbols::border::ROUNDED`].
+    /// Border character set. Default: [`crate::tab_border::Rnd`].
     pub fn border_set(mut self, set: symbols::border::Set<'a>) -> Self {
         self.border_set = set;
         self
