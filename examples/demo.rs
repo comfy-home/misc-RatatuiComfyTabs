@@ -3,6 +3,7 @@
 //! Run: `cargo run --example demo`
 
 use ratatui::{
+    Frame,
     crossterm::event::{self, Event, KeyCode},
     layout::Alignment,
     prelude::{Buffer, Constraint, Layout, Rect, Stylize, Widget},
@@ -10,7 +11,6 @@ use ratatui::{
     symbols::border,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    Frame,
 };
 use ratatui_comfy_tabs::{
     OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabNav, TabNavState, TabOrientation,
@@ -130,52 +130,38 @@ impl App {
                     }
 
                     KeyCode::BackTab => {
-                        self.tab_state.select_direction_wrapping(
-                            TabDirection::Previous,
-                            TABS.len(),
-                        );
+                        self.tab_state
+                            .select_direction_wrapping(TabDirection::Previous, TABS.len());
                     }
                     KeyCode::Tab => {
-                        self.tab_state.select_direction_wrapping(
-                            TabDirection::Next,
-                            TABS.len(),
-                        );
+                        self.tab_state
+                            .select_direction_wrapping(TabDirection::Next, TABS.len());
                     }
 
                     KeyCode::Left | KeyCode::Char('h') if self.mode == DemoMode::Horizontal => {
-                        self.tab_state.select_direction(
-                            TabAxis::Decrease.direction(),
-                            TABS.len(),
-                        );
+                        self.tab_state
+                            .select_direction(TabAxis::Decrease.direction(), TABS.len());
                     }
                     KeyCode::Right | KeyCode::Char('l') if self.mode == DemoMode::Horizontal => {
-                        self.tab_state.select_direction(
-                            TabAxis::Increase.direction(),
-                            TABS.len(),
-                        );
+                        self.tab_state
+                            .select_direction(TabAxis::Increase.direction(), TABS.len());
                     }
 
                     KeyCode::Up | KeyCode::Char('k') if self.mode == DemoMode::Vertical => {
-                        self.tab_state.select_direction(
-                            TabAxis::Decrease.direction(),
-                            TABS.len(),
-                        );
+                        self.tab_state
+                            .select_direction(TabAxis::Decrease.direction(), TABS.len());
                     }
                     KeyCode::Down | KeyCode::Char('j') if self.mode == DemoMode::Vertical => {
-                        self.tab_state.select_direction(
-                            TabAxis::Increase.direction(),
-                            TABS.len(),
-                        );
+                        self.tab_state
+                            .select_direction(TabAxis::Increase.direction(), TABS.len());
                     }
 
                     KeyCode::Char('[') => {
                         self.tab_state.scroll_prev();
                     }
                     KeyCode::Char(']') => {
-                        self.tab_state.scroll_next(
-                            &self.styled_tab_nav(TABS),
-                            self.last_tab_strip_area,
-                        );
+                        self.tab_state
+                            .scroll_next(&self.styled_tab_nav(TABS), self.last_tab_strip_area);
                     }
 
                     _ => {}
@@ -438,7 +424,9 @@ impl App {
         let bg = Color::Rgb(20, 20, 40);
         let border_color = Color::Rgb(60, 60, 100);
 
-        Block::new().style(Style::new().bg(bg)).render(area, frame.buffer_mut());
+        Block::new()
+            .style(Style::new().bg(bg))
+            .render(area, frame.buffer_mut());
 
         let [header, body] =
             Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
@@ -455,13 +443,7 @@ impl App {
         }
     }
 
-    fn render_horizontal(
-        &mut self,
-        frame: &mut Frame,
-        area: Rect,
-        bg: Color,
-        border_color: Color,
-    ) {
+    fn render_horizontal(&mut self, frame: &mut Frame, area: Rect, bg: Color, border_color: Color) {
         let strip_height = self.styled_tab_nav(TABS).horizontal_strip_height();
         let [tabs, content] =
             Layout::vertical([Constraint::Length(strip_height), Constraint::Fill(1)]).areas(area);
@@ -493,13 +475,7 @@ impl App {
         );
     }
 
-    fn render_vertical(
-        &mut self,
-        frame: &mut Frame,
-        area: Rect,
-        bg: Color,
-        border_color: Color,
-    ) {
+    fn render_vertical(&mut self, frame: &mut Frame, area: Rect, bg: Color, border_color: Color) {
         let rail_width = self.vertical_rail_width();
         let [tabs, content] =
             Layout::horizontal([Constraint::Length(rail_width), Constraint::Fill(1)]).areas(area);
