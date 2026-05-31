@@ -1,6 +1,6 @@
 # ratatui-comfy-tabs
 
-An advanced tab navigation widget for [Ratatui](https://ratatui.rs) with individually bordered boxes and rounded corners.
+Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bordered, rounded-corner tabs with horizontal and vertical layouts, robust overflow handling, margin/padding handler, and many more...
 
 ![demo](assets/demo.gif)
 
