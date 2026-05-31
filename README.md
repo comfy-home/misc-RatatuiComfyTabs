@@ -38,6 +38,77 @@ ratatui = "0.30"
 
 ## Usage
 
+### Crate Roadmap
+
+<details>
+<summary>Click Here to view</summary>
+
+```
+ratatui-comfy-tabs
+│
+├── REQUIRED ─────────────────────────────────────────────────────────────
+│   │
+│   ├── TabNav::new(labels, selected)
+│   │     ├── labels: &[&str]          (one label per tab; \n for vertical stacks)
+│   │     └── selected: usize          (active tab index; caller-owned)
+│   │
+│   ├── Render area: Rect
+│   │     ├── Horizontal → height ≥ strip height (default 3 rows)
+│   │     └── Vertical   → width  ≥ rail width  (≥ 3 cols + padding)
+│   │
+│   └── Selection ownership (pick one)
+│         ├── Stateless → pass selected into TabNav::new each frame
+│         └── Stateful  → TabNavState { selected, … } + StatefulWidget::render
+│
+└── OPTIONAL ─────────────────────────────────────────────────────────────
+    │
+    ├── TabNav builder (all have sensible defaults)
+    │   ├── orientation()          Horizontal | Vertical
+    │   ├── margin()               TabMargin (strip inset on flow axis)
+    │   ├── padding()              TabPadding (interior tab box spacing)
+    │   ├── tab_bar_end()          NoEnd | Angl | Rnd
+    │   ├── all_caps()             bool
+    │   ├── style()                inactive label Style
+    │   ├── highlight_style()      active label Style
+    │   ├── highlight_bold()       bool (default true)
+    │   ├── border_style()         border + baseline Style
+    │   ├── indicator()            Option<&str>  (▸ horizontal default; none vertical)
+    │   ├── border_set()           ROUNDED | PLAIN | …
+    │   ├── tab_widths() / tab_heights()   per-tab size overrides
+    │   ├── overflow()             Truncate | Scroll
+    │   ├── scroll_offset()        usize (stateless Scroll mode only)
+    │   ├── overflow_affordance()  bool (default true)
+    │   ├── mouse_wheel()          bool (default true; app must forward events)
+    │   └── mouse_click()          bool (default true; app must forward events)
+    │
+    ├── TabNavState (when using StatefulWidget or input helpers)
+    │   ├── scroll_offset          usize (meaningful when overflow = Scroll)
+    │   ├── select() / select_direction() / select_direction_wrapping()
+    │   ├── scroll_prev() / scroll_next()
+    │   ├── ensure_selected_visible()
+    │   ├── select_direction_visible() / select_direction_wrapping_visible()
+    │   ├── handle_mouse_wheel()   needs strip Rect + pointer + TabWheelDirection
+    │   └── handle_mouse_click()   needs strip Rect + pointer
+    │
+    ├── Geometry / hit-test API (read-only helpers)
+    │   ├── tab_rects() / tab_rects_with_scroll()
+    │   ├── tab_index_at()
+    │   ├── wheel_hover()
+    │   ├── auto_tab_width() / auto_tab_height()
+    │   ├── horizontal_strip_height()
+    │   └── vertical_rail_width()
+    │
+    ├── Input mapping types
+    │   ├── TabDirection             Previous | Next
+    │   ├── TabAxis                  Decrease | Increase  → TabDirection
+    │   └── TabWheelDirection        Up | Down  + from_axes(vertical, horizontal, orientation)
+    │
+    └── Utilities
+          └── vertical_label(text)   → stacked "\n"-separated chars for vertical rails
+```
+
+</details>
+
 ### Horizontal tabs
 
 ```rust
@@ -256,25 +327,25 @@ Use [`TabNav::tab_index_at`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_c
 cargo run --example demo
 ```
 
-| Key | Action |
-|-----|--------|
-| `h` / `l` or ← / → | Previous / next tab (horizontal mode) |
-| `j` / `k` or ↑ / ↓ | Previous / next tab (vertical mode) |
-| `Tab` / `BackTab` | Cycle tabs |
-| `M` | Toggle horizontal / vertical mode |
-| `I` | Toggle active-tab indicator |
-| `B` | Toggle rounded / square borders |
-| `1` | Cycle padding preset (`default` / alt presets) |
-| `2` | Cycle tab bar end (`none` / `angl` / `rnd`) |
-| `C` | Toggle all-caps tab labels |
-| `O` | Toggle overflow (`truncate` / `scroll`) |
-| `W` | Toggle narrow tab strip (forces overflow) |
-| `Y` | Toggle mouse wheel tab switching |
-| `X` | Toggle mouse click tab selection |
-| `[` / `]` | Scroll tab window (scroll mode) |
-| Scroll wheel | Previous / next tab while hovering tabs |
-| Left click | Select tab under pointer |
-| `q` / `Esc` | Quit |
+| Key                | Action                                         |
+| --------------------| ------------------------------------------------|
+| `h` / `l` or ← / → | Previous / next tab (horizontal mode)          |
+| `j` / `k` or ↑ / ↓ | Previous / next tab (vertical mode)            |
+| `Tab` / `BackTab`  | Cycle tabs                                     |
+| `M`                | Toggle horizontal / vertical mode              |
+| `I`                | Toggle active-tab indicator                    |
+| `B`                | Toggle rounded / square borders                |
+| `1`                | Cycle padding preset (`default` / alt presets) |
+| `2`                | Cycle tab bar end (`none` / `angl` / `rnd`)    |
+| `C`                | Toggle all-caps tab labels                     |
+| `O`                | Toggle overflow (`truncate` / `scroll`)        |
+| `W`                | Toggle narrow tab strip (forces overflow)      |
+| `Y`                | Toggle mouse wheel tab switching               |
+| `X`                | Toggle mouse click tab selection               |
+| `[` / `]`          | Scroll tab window (scroll mode)                |
+| Scroll wheel       | Previous / next tab while hovering tabs        |
+| Left click         | Select tab under pointer                       |
+| `q` / `Esc`        | Quit                                           |
 
 Run `cargo run --example demo` for the interactive showcase.
 
