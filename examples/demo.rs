@@ -11,7 +11,10 @@
 
 use ratatui::{
     Frame,
-    crossterm::event::{self, Event, KeyCode, MouseEventKind},
+    crossterm::{
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseEvent, MouseEventKind},
+        execute,
+    },
     layout::Alignment,
     prelude::{Buffer, Constraint, Layout, Rect, Stylize, Widget},
     style::{Color, Style},
@@ -24,11 +27,18 @@ use ratatui_comfy_tabs::{
     TabPadding, TabWheelDirection, vertical_label,
 };
 use ratatui_core::widgets::StatefulWidget;
+use std::io::stdout;
+use std::time::{Duration, Instant};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
-    ratatui::run(|terminal| App::default().run(terminal))?;
+    ratatui::run(|terminal| {
+        execute!(stdout(), EnableMouseCapture)?;
+        let result = App::default().run(terminal);
+        let _ = execute!(stdout(), DisableMouseCapture);
+        result
+    })?;
     Ok(())
 }
 
@@ -72,7 +82,9 @@ struct App {
     narrow_tabs: bool,
     mouse_wheel: bool,
     vertical_labels: Vec<String>,
-    last_tab_strip_area: Rect,
+    wheel_strip_area: Rect,
+    last_mouse_column: u16,
+    last_mouse_row: u16,
 }
 
 impl Default for App {
@@ -89,7 +101,9 @@ impl Default for App {
             narrow_tabs: false,
             mouse_wheel: true,
             vertical_labels: Vec::new(),
-            last_tab_strip_area: Rect::default(),
+            wheel_strip_area: Rect::default(),
+            last_mouse_column: 0,
+            last_mouse_row: 0,
         }
     }
 }
@@ -190,29 +204,119 @@ impl App {
                         self.tab_state.scroll_prev();
                     }
                     KeyCode::Char(']') => {
-                        self.tab_state
-                            .scroll_next(&self.styled_tab_nav(TABS), self.last_tab_strip_area);
+                        match self.mode {
+                            DemoMode::Horizontal => {
+                                let nav = self.styled_tab_nav(TABS);
+                                self.tab_state
+                                    .scroll_next(&nav, self.wheel_strip_area);
+                            }
+                            DemoMode::Vertical => {
+                                let label_refs: Vec<&str> = self
+                                    .vertical_labels
+                                    .iter()
+                                    .map(String::as_str)
+                                    .collect();
+                                let nav = self.styled_tab_nav(&label_refs);
+                                self.tab_state
+                                    .scroll_next(&nav, self.wheel_strip_area);
+                            }
+                        }
                     }
 
                     _ => {}
                 },
                 Event::Mouse(mouse) => {
-                    let wheel = match mouse.kind {
-                        MouseEventKind::ScrollUp => Some(TabWheelDirection::Up),
-                        MouseEventKind::ScrollDown => Some(TabWheelDirection::Down),
-                        _ => None,
-                    };
-                    if let Some(direction) = wheel {
-                        self.tab_state.handle_mouse_wheel(
-                            &self.styled_tab_nav(TABS),
-                            self.last_tab_strip_area,
-                            mouse.column,
-                            mouse.row,
-                            direction,
-                        );
-                    }
+                    self.handle_mouse(mouse);
                 }
                 _ => {}
+            }
+        }
+    }
+
+    fn tab_orientation(&self) -> TabOrientation {
+        match self.mode {
+            DemoMode::Horizontal => TabOrientation::Horizontal,
+            DemoMode::Vertical => TabOrientation::Vertical,
+        }
+    }
+
+    fn wheel_axes_from_mouse(mouse: &MouseEvent) -> (Option<TabWheelDirection>, Option<TabWheelDirection>) {
+        let vertical = match mouse.kind {
+            MouseEventKind::ScrollUp => Some(TabWheelDirection::Up),
+            MouseEventKind::ScrollDown => Some(TabWheelDirection::Down),
+            _ => None,
+        };
+        let horizontal = match mouse.kind {
+            MouseEventKind::ScrollLeft => Some(TabWheelDirection::Up),
+            MouseEventKind::ScrollRight => Some(TabWheelDirection::Down),
+            _ => None,
+        };
+        (vertical, horizontal)
+    }
+
+    fn handle_mouse(&mut self, mouse: MouseEvent) {
+        self.last_mouse_column = mouse.column;
+        self.last_mouse_row = mouse.row;
+
+        let (vertical, horizontal) = Self::wheel_axes_from_mouse(&mouse);
+        if vertical.is_none() && horizontal.is_none() {
+            return;
+        }
+
+        let Some(direction) =
+            TabWheelDirection::from_axes(vertical, horizontal, self.tab_orientation())
+        else {
+            return;
+        };
+
+        self.drain_matching_wheel(direction);
+
+        let consumed = match self.mode {
+            DemoMode::Horizontal => {
+                let nav = self.styled_tab_nav(TABS);
+                self.tab_state.handle_mouse_wheel(
+                    &nav,
+                    self.wheel_strip_area,
+                    self.last_mouse_column,
+                    self.last_mouse_row,
+                    direction,
+                )
+            }
+            DemoMode::Vertical => {
+                let label_refs: Vec<&str> = self
+                    .vertical_labels
+                    .iter()
+                    .map(String::as_str)
+                    .collect();
+                let nav = self.styled_tab_nav(&label_refs);
+                self.tab_state.handle_mouse_wheel(
+                    &nav,
+                    self.wheel_strip_area,
+                    self.last_mouse_column,
+                    self.last_mouse_row,
+                    direction,
+                )
+            }
+        };
+        let _ = consumed;
+    }
+
+    fn drain_matching_wheel(&mut self, direction: TabWheelDirection) {
+        let deadline = Instant::now() + Duration::from_millis(30);
+        while Instant::now() < deadline {
+            if !event::poll(Duration::from_millis(0)).unwrap_or(false) {
+                break;
+            }
+            let Ok(Event::Mouse(mouse)) = event::read() else {
+                break;
+            };
+            self.last_mouse_column = mouse.column;
+            self.last_mouse_row = mouse.row;
+            let (vertical, horizontal) = Self::wheel_axes_from_mouse(&mouse);
+            let same = TabWheelDirection::from_axes(vertical, horizontal, self.tab_orientation())
+                == Some(direction);
+            if !same {
+                break;
             }
         }
     }
@@ -510,10 +614,10 @@ impl App {
             tabs
         };
 
-        self.last_tab_strip_area = tab_area;
+        self.wheel_strip_area = tabs;
         let nav = self.styled_tab_nav(TABS);
         self.tab_state
-            .ensure_selected_visible(&nav, self.last_tab_strip_area);
+            .ensure_selected_visible(&nav, self.wheel_strip_area);
         StatefulWidget::render(nav, tab_area, frame.buffer_mut(), &mut self.tab_state);
 
         self.render_content_pane(
@@ -543,10 +647,10 @@ impl App {
         };
 
         let label_refs: Vec<&str> = self.vertical_labels.iter().map(String::as_str).collect();
-        self.last_tab_strip_area = tab_area;
+        self.wheel_strip_area = tabs;
         let nav = self.styled_tab_nav(&label_refs);
         self.tab_state
-            .ensure_selected_visible(&nav, self.last_tab_strip_area);
+            .ensure_selected_visible(&nav, self.wheel_strip_area);
         StatefulWidget::render(nav, tab_area, frame.buffer_mut(), &mut self.tab_state);
 
         self.render_content_pane(

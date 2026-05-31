@@ -528,3 +528,46 @@ fn mouse_wheel_ignored_outside_strip() {
     ));
     assert_eq!(state.selected, 0);
 }
+
+#[test]
+fn wheel_direction_from_axes_prefers_horizontal_on_horizontal_strip() {
+    use crate::config::TabOrientation;
+    assert_eq!(
+        TabWheelDirection::from_axes(
+            Some(TabWheelDirection::Down),
+            Some(TabWheelDirection::Up),
+            TabOrientation::Horizontal,
+        ),
+        Some(TabWheelDirection::Up),
+    );
+    assert_eq!(
+        TabWheelDirection::from_axes(
+            Some(TabWheelDirection::Down),
+            None,
+            TabOrientation::Horizontal,
+        ),
+        Some(TabWheelDirection::Down),
+    );
+}
+
+#[test]
+fn wheel_direction_from_axes_prefers_vertical_on_vertical_strip() {
+    use crate::config::TabOrientation;
+    assert_eq!(
+        TabWheelDirection::from_axes(
+            Some(TabWheelDirection::Up),
+            Some(TabWheelDirection::Down),
+            TabOrientation::Vertical,
+        ),
+        Some(TabWheelDirection::Up),
+    );
+}
+
+#[test]
+fn wheel_hover_accepts_pointer_over_visible_tab() {
+    let nav = TabNav::new(&["Alpha", "Beta", "Gamma"], 0);
+    let strip = Rect::new(0, 0, 12, 3);
+    // Narrow render area; pointer over second tab rect still counts.
+    assert!(nav.wheel_hover(strip, 0, 7, 1));
+    assert!(!nav.wheel_hover(strip, 0, 50, 1));
+}
