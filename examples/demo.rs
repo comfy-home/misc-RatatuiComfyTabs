@@ -1,10 +1,17 @@
+//! Copyright © 2026 ComfyHome™
+//! All rights reserved.
+//!
+//! Licensed under the ComfyGit SA-PS:DA License
+//!
+//! For details, see the LICENSE file in the repository root.
+
 //! Interactive demo for ratatui-comfy-tabs.
 //!
 //! Run: `cargo run --example demo`
 
 use ratatui::{
     Frame,
-    crossterm::event::{self, Event, KeyCode},
+    crossterm::event::{self, Event, KeyCode, MouseEventKind},
     layout::Alignment,
     prelude::{Buffer, Constraint, Layout, Rect, Stylize, Widget},
     style::{Color, Style},
@@ -14,7 +21,7 @@ use ratatui::{
 };
 use ratatui_comfy_tabs::{
     OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabNav, TabNavState, TabOrientation,
-    TabPadding, vertical_label,
+    TabPadding, TabWheelDirection, vertical_label,
 };
 use ratatui_core::widgets::StatefulWidget;
 
@@ -53,7 +60,6 @@ enum PaddingPreset {
     Alt3,
 }
 
-#[derive(Default)]
 struct App {
     tab_state: TabNavState,
     mode: DemoMode,
@@ -64,8 +70,28 @@ struct App {
     all_caps: bool,
     overflow: OverflowPolicy,
     narrow_tabs: bool,
+    mouse_wheel: bool,
     vertical_labels: Vec<String>,
     last_tab_strip_area: Rect,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            tab_state: TabNavState::default(),
+            mode: DemoMode::default(),
+            border_kind: BorderKind::default(),
+            show_indicator: false,
+            padding_preset: PaddingPreset::default(),
+            tab_bar_end: TabBarEnd::default(),
+            all_caps: false,
+            overflow: OverflowPolicy::default(),
+            narrow_tabs: false,
+            mouse_wheel: true,
+            vertical_labels: Vec::new(),
+            last_tab_strip_area: Rect::default(),
+        }
+    }
 }
 
 impl App {
@@ -75,8 +101,8 @@ impl App {
         loop {
             terminal.draw(|frame| self.draw(frame))?;
 
-            if let Event::Key(key) = event::read()? {
-                match key.code {
+            match event::read()? {
+                Event::Key(key) => match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
 
                     KeyCode::Char('m') | KeyCode::Char('M') => {
@@ -129,6 +155,10 @@ impl App {
                         self.narrow_tabs = !self.narrow_tabs;
                     }
 
+                    KeyCode::Char('y') | KeyCode::Char('Y') => {
+                        self.mouse_wheel = !self.mouse_wheel;
+                    }
+
                     KeyCode::BackTab => {
                         self.tab_state
                             .select_direction_wrapping(TabDirection::Previous, TABS.len());
@@ -165,7 +195,24 @@ impl App {
                     }
 
                     _ => {}
+                },
+                Event::Mouse(mouse) => {
+                    let wheel = match mouse.kind {
+                        MouseEventKind::ScrollUp => Some(TabWheelDirection::Up),
+                        MouseEventKind::ScrollDown => Some(TabWheelDirection::Down),
+                        _ => None,
+                    };
+                    if let Some(direction) = wheel {
+                        self.tab_state.handle_mouse_wheel(
+                            &self.styled_tab_nav(TABS),
+                            self.last_tab_strip_area,
+                            mouse.column,
+                            mouse.row,
+                            direction,
+                        );
+                    }
                 }
+                _ => {}
             }
         }
     }
@@ -228,7 +275,8 @@ impl App {
 
         let mut nav = TabNav::new(tabs, self.tab_state.selected)
             .border_set(self.tab_border_set())
-            .overflow(self.overflow);
+            .overflow(self.overflow)
+            .mouse_wheel(self.mouse_wheel);
         if self.mode == DemoMode::Vertical {
             nav = nav.orientation(TabOrientation::Vertical);
         }
@@ -274,6 +322,7 @@ impl App {
         let caps_label = if self.all_caps { "on" } else { "off" };
         let overflow_label = self.overflow_label();
         let width_label = if self.narrow_tabs { "narrow" } else { "wide" };
+        let wheel_label = if self.mouse_wheel { "on" } else { "off" };
 
         let mut spans = Vec::new();
 
@@ -337,6 +386,10 @@ impl App {
             key("W"),
             dim(" width ("),
             Span::styled(width_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("Y"),
+            dim(" wheel ("),
+            Span::styled(wheel_label, Style::new().fg(Color::DarkGray)),
             dim(") | "),
             key("["),
             dim("/"),
