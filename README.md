@@ -91,9 +91,10 @@ cargo run --example demo
 | `Tab` / `BackTab` | Cycle tabs |
 | `M` | Toggle horizontal / vertical mode |
 | `I` | Toggle active-tab indicator |
+| `B` | Toggle rounded / square borders |
 | `q` / `Esc` | Quit |
 
-Other example binaries (`basic`, `interactive`, `vertical`) are deprecated; use `demo` for all interactive exploration.
+Run `cargo run --example demo` for the interactive showcase.
 
 ## License
 
