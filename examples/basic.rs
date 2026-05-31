@@ -1,3 +1,5 @@
+//! Deprecated — use `cargo run --example demo` instead.
+
 use ratatui::{
     prelude::{Constraint, Layout, Widget},
     widgets::{Block, Paragraph},
