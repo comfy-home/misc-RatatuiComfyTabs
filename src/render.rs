@@ -303,7 +303,7 @@ fn apply_horizontal_tab_bar_end(
 
     let (left_cap, right_cap) = match end_style {
         TabBarEnd::NoEnd => return,
-        TabBarEnd::Angl => ("├", "┐"),
+        TabBarEnd::Sqr => ("├", "┐"),
         TabBarEnd::Rnd => ("├", "╮"),
     };
 
@@ -329,7 +329,7 @@ fn apply_vertical_tab_bar_end(
         .set_style(style);
 
     let bottom_cap = match end_style {
-        TabBarEnd::Angl => "└",
+        TabBarEnd::Sqr => "└",
         TabBarEnd::Rnd => "╰",
         TabBarEnd::NoEnd => return,
     };
