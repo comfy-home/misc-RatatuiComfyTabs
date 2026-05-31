@@ -1051,6 +1051,7 @@ dependencies = [
  "color-eyre",
  "ratatui",
  "ratatui-core",
+ "unicode-width",
 ]
 
 [[package]]

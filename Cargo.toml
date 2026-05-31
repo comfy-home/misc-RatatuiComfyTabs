@@ -5,7 +5,6 @@ version = "0.3.0"
 edition = "2024"
 description = "An advanced tab navigation widget for Ratatui."
 license = "LicenseRef-SA-PS-DA-v1.0"
-license-file = "LICENSE.md"
 keywords = ["tui", "ratatui", "tabs", "widget", "comfy"]
 categories = ["command-line-interface"]
 homepage = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
@@ -24,6 +23,7 @@ attrib_link = ["https://github.com/jharsono/tui-tabs"]
 
 [dependencies]
 ratatui-core = "0.1.0"
+unicode-width = "0.2"
 
 [dev-dependencies]
 color-eyre = "0.6"
