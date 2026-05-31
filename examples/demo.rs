@@ -12,7 +12,10 @@
 use ratatui::{
     Frame,
     crossterm::{
-        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEvent, MouseEventKind},
+        event::{
+            self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEvent,
+            MouseEventKind,
+        },
         execute,
     },
     layout::Alignment,
@@ -134,10 +137,7 @@ impl App {
                             DemoMode::Horizontal => DemoMode::Vertical,
                             DemoMode::Vertical => DemoMode::Horizontal,
                         };
-                        self.record_command(format!(
-                            "self.mode = DemoMode::{:?};",
-                            self.mode
-                        ));
+                        self.record_command(format!("self.mode = DemoMode::{:?};", self.mode));
                     }
 
                     KeyCode::Char('i') | KeyCode::Char('I') => {
@@ -301,18 +301,13 @@ impl App {
                         match self.mode {
                             DemoMode::Horizontal => {
                                 let nav = self.styled_tab_nav(TABS);
-                                self.tab_state
-                                    .scroll_next(&nav, self.wheel_strip_area);
+                                self.tab_state.scroll_next(&nav, self.wheel_strip_area);
                             }
                             DemoMode::Vertical => {
-                                let label_refs: Vec<&str> = self
-                                    .vertical_labels
-                                    .iter()
-                                    .map(String::as_str)
-                                    .collect();
+                                let label_refs: Vec<&str> =
+                                    self.vertical_labels.iter().map(String::as_str).collect();
                                 let nav = self.styled_tab_nav(&label_refs);
-                                self.tab_state
-                                    .scroll_next(&nav, self.wheel_strip_area);
+                                self.tab_state.scroll_next(&nav, self.wheel_strip_area);
                             }
                         }
                         self.record_command(format!(
@@ -338,7 +333,9 @@ impl App {
         }
     }
 
-    fn wheel_axes_from_mouse(mouse: &MouseEvent) -> (Option<TabWheelDirection>, Option<TabWheelDirection>) {
+    fn wheel_axes_from_mouse(
+        mouse: &MouseEvent,
+    ) -> (Option<TabWheelDirection>, Option<TabWheelDirection>) {
         let vertical = match mouse.kind {
             MouseEventKind::ScrollUp => Some(TabWheelDirection::Up),
             MouseEventKind::ScrollDown => Some(TabWheelDirection::Down),
@@ -378,11 +375,8 @@ impl App {
                 )
             }
             DemoMode::Vertical => {
-                let label_refs: Vec<&str> = self
-                    .vertical_labels
-                    .iter()
-                    .map(String::as_str)
-                    .collect();
+                let label_refs: Vec<&str> =
+                    self.vertical_labels.iter().map(String::as_str).collect();
                 let nav = self.styled_tab_nav(&label_refs);
                 self.tab_state.handle_mouse_click(
                     &nav,
@@ -426,11 +420,8 @@ impl App {
                 )
             }
             DemoMode::Vertical => {
-                let label_refs: Vec<&str> = self
-                    .vertical_labels
-                    .iter()
-                    .map(String::as_str)
-                    .collect();
+                let label_refs: Vec<&str> =
+                    self.vertical_labels.iter().map(String::as_str).collect();
                 let nav = self.styled_tab_nav(&label_refs);
                 self.tab_state.handle_mouse_wheel(
                     &nav,
