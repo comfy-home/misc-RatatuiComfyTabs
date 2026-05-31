@@ -22,7 +22,7 @@ use ratatui::{
     prelude::{Buffer, Constraint, Layout, Rect, Stylize, Widget},
     style::{Color, Style},
     symbols::border,
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph},
 };
 use ratatui_comfy_tabs::{
@@ -115,6 +115,51 @@ impl Default for App {
             last_command: String::from("// Press a shortcut or click a tab to see the code change"),
         }
     }
+}
+
+fn spans_width(spans: &[Span<'_>]) -> usize {
+    spans.iter().map(Span::width).sum()
+}
+
+fn wrap_footer_segments(segments: Vec<Vec<Span<'static>>>, width: usize) -> Vec<Line<'static>> {
+    if segments.is_empty() {
+        return vec![Line::from("")];
+    }
+
+    let separator = vec![Span::styled(" | ", Style::new().fg(Color::DarkGray))];
+    let separator_width = spans_width(&separator);
+
+    let mut lines = Vec::new();
+    let mut current = Vec::new();
+    let mut current_width = 0;
+
+    for segment in segments {
+        let segment_width = spans_width(&segment);
+        let added_width = if current.is_empty() {
+            segment_width
+        } else {
+            separator_width + segment_width
+        };
+
+        if !current.is_empty() && current_width + added_width > width {
+            lines.push(Line::from(std::mem::take(&mut current)));
+            current = segment;
+            current_width = segment_width;
+        } else {
+            if !current.is_empty() {
+                current.extend(separator.clone());
+                current_width += separator_width;
+            }
+            current.extend(segment);
+            current_width += segment_width;
+        }
+    }
+
+    if !current.is_empty() {
+        lines.push(Line::from(current));
+    }
+
+    lines
 }
 
 impl App {
@@ -551,7 +596,7 @@ impl App {
         self.styled_tab_nav(&label_refs).vertical_rail_width()
     }
 
-    fn shortcut_footer_line(&self) -> Line<'static> {
+    fn shortcut_footer_segments(&self) -> Vec<Vec<Span<'static>>> {
         let key = |s: &'static str| Span::styled(s, Style::new().fg(Color::Yellow));
         let dim = |s: &'static str| Span::styled(s, Style::new().fg(Color::DarkGray));
 
@@ -572,86 +617,99 @@ impl App {
         let wheel_label = if self.mouse_wheel { "on" } else { "off" };
         let click_label = if self.mouse_click { "on" } else { "off" };
 
-        let mut spans = Vec::new();
+        let nav = match self.mode {
+            DemoMode::Horizontal => vec![
+                key("h"),
+                dim("/"),
+                key("l"),
+                dim(" or "),
+                key("←"),
+                dim("/"),
+                key("→"),
+                dim(" tabs"),
+            ],
+            DemoMode::Vertical => vec![
+                key("j"),
+                dim("/"),
+                key("k"),
+                dim(" or "),
+                key("↑"),
+                dim("/"),
+                key("↓"),
+                dim(" tabs"),
+            ],
+        };
 
-        match self.mode {
-            DemoMode::Horizontal => {
-                spans.extend([
-                    key("h"),
-                    dim("/"),
-                    key("l"),
-                    dim(" or "),
-                    key("←"),
-                    dim("/"),
-                    key("→"),
-                ]);
-            }
-            DemoMode::Vertical => {
-                spans.extend([
-                    key("j"),
-                    dim("/"),
-                    key("k"),
-                    dim(" or "),
-                    key("↑"),
-                    dim("/"),
-                    key("↓"),
-                ]);
-            }
-        }
+        vec![
+            nav,
+            vec![key("Tab"), dim(" cycle")],
+            vec![
+                key("M"),
+                dim(" mode ("),
+                Span::styled(mode_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("I"),
+                dim(" indicator ("),
+                Span::styled(indicator_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("B"),
+                dim(" border ("),
+                Span::styled(border_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("1"),
+                dim(" pad ("),
+                Span::styled(padding_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("2"),
+                dim(" end ("),
+                Span::styled(end_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("C"),
+                dim(" caps ("),
+                Span::styled(caps_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("O"),
+                dim(" overflow ("),
+                Span::styled(overflow_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("W"),
+                dim(" width ("),
+                Span::styled(width_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("Y"),
+                dim(" wheel ("),
+                Span::styled(wheel_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("X"),
+                dim(" click ("),
+                Span::styled(click_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![key("["), dim("/"), key("]"), dim(" scroll")],
+            vec![key("q"), dim(" quit")],
+        ]
+    }
 
-        spans.extend([
-            dim(" tabs | "),
-            key("Tab"),
-            dim(" cycle | "),
-            key("M"),
-            dim(" mode ("),
-            Span::styled(mode_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("I"),
-            dim(" indicator ("),
-            Span::styled(indicator_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("B"),
-            dim(" border ("),
-            Span::styled(border_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("1"),
-            dim(" pad ("),
-            Span::styled(padding_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("2"),
-            dim(" end ("),
-            Span::styled(end_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("C"),
-            dim(" caps ("),
-            Span::styled(caps_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("O"),
-            dim(" overflow ("),
-            Span::styled(overflow_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("W"),
-            dim(" width ("),
-            Span::styled(width_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("Y"),
-            dim(" wheel ("),
-            Span::styled(wheel_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("X"),
-            dim(" click ("),
-            Span::styled(click_label, Style::new().fg(Color::DarkGray)),
-            dim(") | "),
-            key("["),
-            dim("/"),
-            key("]"),
-            dim(" scroll | "),
-            key("q"),
-            dim(" quit"),
-        ]);
-
-        Line::from(spans)
+    fn shortcut_footer_lines(&self, width: u16) -> Vec<Line<'static>> {
+        wrap_footer_segments(self.shortcut_footer_segments(), width.max(1) as usize)
     }
 
     fn content_block<'a>(&self, title: &'a str, border_color: Color, bg: Color) -> Block<'a> {
@@ -712,8 +770,12 @@ impl App {
             self.paint_vertical_content_top_border(area, buf, border_color);
         }
 
+        let shortcut_lines = self.shortcut_footer_lines(inner.width);
+        let footer_height = shortcut_lines.len().clamp(1, 8) as u16;
+        let shortcuts = Paragraph::new(Text::from(shortcut_lines)).alignment(Alignment::Center);
+
         let [main, footer] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(inner);
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(footer_height)]).areas(inner);
 
         let [top_spacer, command_area, status_area, bottom_spacer] = Layout::vertical([
             Constraint::Fill(1),
@@ -735,9 +797,7 @@ impl App {
             .style(Style::new().fg(Color::DarkGray))
             .render(status_area, buf);
 
-        Paragraph::new(self.shortcut_footer_line())
-            .alignment(Alignment::Center)
-            .render(footer, buf);
+        shortcuts.render(footer, buf);
     }
 }
 
