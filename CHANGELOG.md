@@ -1,0 +1,110 @@
+# Changelog History
+
+Newest archived changelogs first. When multiple archived files represent the same version, only the newest archive is included here.
+
+## Changelog `v0.2.3` <sup><div align="end">🗓️ 2026-05-31</div></sup>
+
+### 🧩 Features
+
+* add vertical tab navigation example using ratatui <sub><sup><sup>_50848ef_</sup></sup></sub>
+
+* enhance TabNav with orientation support and vertical label conversion <sub><sup><sup>_2cbb2f9_</sup></sup></sub>
+
+* implement interactive demo with horizontal and vertical tab navigation modes <sub><sup><sup>_978146a_</sup></sup></sub>
+
+* enhance TabNav indicator behavior for vertical and horizontal orientations <sub><sup><sup>_97d7aec_</sup></sup></sub>
+
+* improve demo UI with shortcut footer and content rendering enhancements <sub><sup><sup>_f0ba413_</sup></sup></sub>
+
+* add TabMargin and TabPadding structs for customizable tab layout and spacing <sub><sup><sup>_0d501cc_</sup></sup></sub>
+
+* add padding preset and tab bar end options to demo application <sub><sup><sup>_b9f0c0a_</sup></sup></sub>
+
+* introduce TabBarEnd enum for customizable tab strip end caps and enhance TabNav with new tab_bar_end option <sub><sup><sup>_8e473ff_</sup></sup></sub>
+
+* update demo application to use PaddingPreset enum and add all_caps functionality for tab navigation <sub><sup><sup>_3f72f74_</sup></sup></sub>
+
+* add all_caps option to TabNav for rendering uppercase tab labels and update TabBarEnd enum documentation <sub><sup><sup>_1ac5393_</sup></sup></sub>
+
+### 🐛 Fix(es)
+
+* update TabNav import to use ratatui_comfy_tabs <sub><sup><sup>_8d9ac94_</sup></sup></sub>
+
+* correct border symbol rendering for active and inactive states in the UI <sub><sup><sup>_979e77e_</sup></sup></sub>
+
+### 🔧 Maintenance
+
+* CG app version bump to v0.1.0 <sub><sup><sup>_07cc6d8_</sup></sup></sub>
+
+* update rust-version to 1.95 in Cargo.toml <sub><sup><sup>_f9a8006_</sup></sup></sub>
+
+* CG app version bump to v0.1.1 <sub><sup><sup>_dccec7b_</sup></sup></sub>
+
+* CG app version bump to v0.1.2 <sub><sup><sup>_6f2149a_</sup></sup></sub>
+
+* CG app version bump to v0.2.0 <sub><sup><sup>_7d72bcb_</sup></sup></sub>
+
+* CG app version bump to v0.2.1 <sub><sup><sup>_8c544d5_</sup></sup></sub>
+
+* CG app version bump to v0.2.2 <sub><sup><sup>_a5cf56e_</sup></sup></sub>
+
+* CG app version bump to v0.2.3 <sub><sup><sup>_5dc0979_</sup></sup></sub>
+
+### ℹ️ Documentation
+
+* Add CONTRIBUTING.md <sub><sup><sup>_6be200c_</sup></sup></sub>
+
+* Add LICENSE <sub><sup><sup>_00bedd9_</sup></sup></sub>
+
+* update README <sub><sup><sup>_41ec3df_</sup></sup></sub>
+
+* update README to clarify tab navigation features and usage examples <sub><sup><sup>_393ed2a_</sup></sup></sub>
+
+* update README to include new shortcut for toggling border styles <sub><sup><sup>_b7b7f12_</sup></sup></sub>
+
+* update README to reflect new TabMargin and TabPadding features, including usage examples <sub><sup><sup>_2591216_</sup></sup></sub>
+
+* enhance README with new tab bar end options and update default padding values for tab layouts <sub><sup><sup>_d5f155e_</sup></sup></sub>
+
+* update README to include all_caps option for tab labels and clarify padding preset descriptions <sub><sup><sup>_f777123_</sup></sup></sub>
+
+* update README to include new tab sizing options and geometry details for TabNav <sub><sup><sup>_2e08359_</sup></sup></sub>
+
+### 🎨 Visuals
+
+* improve code formatting and consistency in tab rendering functions <sub><sup><sup>_0d8c3de_</sup></sup></sub>
+
+### ♻️ Refactor
+
+* remove deprecated example files in favor of a unified demo example <sub><sup><sup>_d05e9d1_</sup></sup></sub>
+
+* simplify vertical rail width calculation and adjust layout for horizontal rendering <sub><sup><sup>_3750a0b_</sup></sup></sub>
+
+* simplify tab definitions and improve layout formatting in demo application <sub><sup><sup>_21c0fa2_</sup></sup></sub>
+
+### 📝 Other
+
+* Merge pull request #1 (via ComfyGit) <sub><sup><sup>_d8d313d_</sup></sup></sub>
+
+* Merge pull request #2 (via ComfyGit) <sub><sup><sup>_02d3c6f_</sup></sup></sub>
+
+* Add releaseNOW script for streamlined Rust crate releases <sub><sup><sup>_13fd8d9_</sup></sup></sub>
+
+* Update license information and copyright notice in lib.rs <sub><sup><sup>_dfab8b2_</sup></sup></sub>
+
+* Merge remote-tracking branch 'gitlab/main' into HEAD <sub><sup><sup>_296bd54_</sup></sup></sub>
+
+* Merge pull request #4 (via ComfyGit) <sub><sup><sup>_7c74e56_</sup></sup></sub>
+
+* Merge pull request #5 (via ComfyGit) <sub><sup><sup>_e09f924_</sup></sup></sub>
+
+* Merge pull request #6 (via ComfyGit) <sub><sup><sup>_9ebaa01_</sup></sup></sub>
+
+* Merge pull request #7 (via ComfyGit) <sub><sup><sup>_89af767_</sup></sup></sub>
+
+* Merge pull request #8 (via ComfyGit) <sub><sup><sup>_86eff59_</sup></sup></sub>
+
+
+
+---
+... ✨ made with [ComfyGit](https://github.com/comfy-home/ComfyGit)
