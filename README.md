@@ -13,6 +13,8 @@ An advanced tab navigation widget for [Ratatui](https://ratatui.rs) with individ
 - Optional indicator symbol on the active tab (`▸` by default for horizontal tabs)
 - [`vertical_label`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/fn.vertical_label.html) helper for stacked single-character rows
 - Configurable [`TabMargin`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabMargin.html) and [`TabPadding`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabPadding.html) with orientation-specific defaults
+- [`tab_rects`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_rects) for hit targets and adjacent layout without duplicating width math
+- Optional per-tab size overrides via [`tab_widths`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_widths) / [`tab_heights`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_heights)
 - Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
@@ -81,6 +83,10 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `border_style()` | Unstyled | Border and baseline style |
 | `indicator()` | `Some("▸")` horizontal / `None` vertical | Active-tab marker; pass `None` to disable |
 | `border_set()` | `ROUNDED` | Border character set (`ROUNDED`, `PLAIN`, etc.) |
+| `tab_widths()` | auto | Override horizontal tab widths (columns) |
+| `tab_heights()` | auto | Override vertical tab heights (rows) |
+| `tab_rects(area)` | — | Layout `Rect` per visible tab (for hit targets) |
+| `auto_tab_width()` / `auto_tab_height()` | — | Default size for one tab index |
 | `horizontal_strip_height()` | — | Minimum render height for horizontal layout |
 | `vertical_rail_width()` | — | Rail width for vertical layout (widest tab) |
 
@@ -129,6 +135,34 @@ use ratatui_comfy_tabs::{TabNav, TabBarEnd};
 
 TabNav::new(&["A", "B"], 0).tab_bar_end(TabBarEnd::Rnd);
 ```
+
+### Tab sizing and geometry
+
+Default horizontal tab **width** (columns):
+
+`2 + padding.left + label_display_width + padding.right`
+
+Default vertical tab **height** (rows):
+
+`2 + padding.top + label_line_count + padding.bottom`
+
+Label width uses the longest line's byte length (`.len()`). Use [`auto_tab_width`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.auto_tab_width) / [`auto_tab_height`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.auto_tab_height) to query sizes for a configured widget.
+
+Override per-tab sizes when auto layout does not match your UI (e.g. mouse hit targets):
+
+```rust
+use ratatui::layout::Rect;
+use ratatui_comfy_tabs::TabNav;
+
+let nav = TabNav::new(&["Files", "Search", "Settings"], 0)
+    .tab_widths(&[16, 22, 20]);
+
+for rect in nav.tab_rects(Rect::new(0, 0, 80, 3)) {
+    // use rect for click handling or adjacent layout
+}
+```
+
+[`tab_rects`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_rects) returns one rectangle per tab that fits in `area`, using the same truncation rules as rendering. For vertical tabs, pass explicit heights with `.tab_heights(&[…])`.
 
 ## Demo
 
