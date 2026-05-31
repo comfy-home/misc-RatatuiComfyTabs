@@ -497,13 +497,22 @@ fn draw_active_right(
     right: u16,
     top: u16,
     bottom: u16,
-    _border: &symbols::border::Set,
+    border: &symbols::border::Set,
     style: Style,
     buf: &mut Buffer,
 ) {
+    // Mirror horizontal active bottom: open toward content on the right.
+    buf[(right, top)]
+        .set_symbol(border.bottom_right)
+        .set_style(style);
+
     for y in (top + 1)..bottom {
         buf[(right, y)].set_symbol(" ").set_style(style);
     }
+
+    buf[(right, bottom)]
+        .set_symbol(border.top_right)
+        .set_style(style);
 }
 
 fn draw_inactive_vertical_right(_left: u16, right: u16, top: u16, bottom: u16, style: Style, buf: &mut Buffer) {
@@ -693,8 +702,7 @@ mod tests {
         let top_line = line_str(&buf, 0);
 
         assert!(top_line.starts_with('╭'));
-        assert!(top_line.ends_with('╮'));
-        assert!(!top_line.ends_with('╰'));
+        assert!(top_line.ends_with('╯'));
     }
 
     #[test]
@@ -707,9 +715,9 @@ mod tests {
         let right_col = col_str(&buf, width - 1);
         let glyphs: Vec<char> = right_col.chars().collect();
 
-        assert_eq!(glyphs.first(), Some(&'╮'));
+        assert_eq!(glyphs.first(), Some(&'╯'));
         assert!(glyphs[1..glyphs.len() - 1].iter().all(|&ch| ch == ' '));
-        assert_eq!(glyphs.last(), Some(&'╯'));
+        assert_eq!(glyphs.last(), Some(&'╮'));
     }
 
     #[test]
