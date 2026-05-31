@@ -197,22 +197,33 @@ Use [`TabAxis::Decrease`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comf
 
 ### Mouse wheel
 
-When [`.mouse_wheel(true)`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.mouse_wheel) (default), forward scroll events to [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) while the pointer is inside the tab strip [`Rect`](https://docs.rs/ratatui-core/latest/ratatui_core/layout/struct.Rect.html):
+When [`.mouse_wheel(true)`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.mouse_wheel) (default), forward scroll events to [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) while the pointer is over the strip or any visible tab ([`TabNav::wheel_hover`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.wheel_hover)):
 
 ```rust
-use ratatui_comfy_tabs::{TabNav, TabNavState, TabWheelDirection};
+use ratatui::crossterm::event::{MouseEventKind, Event};
+use ratatui_comfy_tabs::{TabNav, TabNavState, TabOrientation, TabWheelDirection};
 
-// In your crossterm / ratatui event loop, after computing `strip_area`:
-state.handle_mouse_wheel(
-    &nav,
-    strip_area,
-    mouse.column,
-    mouse.row,
-    TabWheelDirection::Down,
-);
+// Map crossterm scroll kinds; horizontal strips prefer touchpad left/right.
+let vertical = match mouse.kind {
+    MouseEventKind::ScrollUp => Some(TabWheelDirection::Up),
+    MouseEventKind::ScrollDown => Some(TabWheelDirection::Down),
+    _ => None,
+};
+let horizontal = match mouse.kind {
+    MouseEventKind::ScrollLeft => Some(TabWheelDirection::Up),
+    MouseEventKind::ScrollRight => Some(TabWheelDirection::Down),
+    _ => None,
+};
+if let Some(direction) =
+    TabWheelDirection::from_axes(vertical, horizontal, TabOrientation::Horizontal)
+{
+    // Terminals emit many wheel events per notch — coalesce bursts in your loop
+    // so one physical scroll moves one tab (see `examples/demo.rs`).
+    state.handle_mouse_wheel(&nav, strip_area, mouse.column, mouse.row, direction);
+}
 ```
 
-Returns `true` when the event was consumed. Disable per widget with `.mouse_wheel(false)`.
+Pass the full layout strip [`Rect`](https://docs.rs/ratatui-core/latest/ratatui_core/layout/struct.Rect.html) as `strip_area` even when the widget renders into a narrower viewport. Returns `true` when consumed. Disable per widget with `.mouse_wheel(false)`.
 
 ### Crate layout
 
