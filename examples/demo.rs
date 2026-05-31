@@ -11,7 +11,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
-use ratatui_comfy_tabs::{TabNav, TabOrientation, vertical_label};
+use ratatui_comfy_tabs::{TabBarEnd, TabNav, TabOrientation, TabPadding, vertical_label};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -25,7 +25,7 @@ const TABS: &[&str] = &[
     "Nodes",
     "Network",
     "Content",
-    "Inference",
+    "UI",
     "Config",
     "Logs",
 ];
@@ -46,12 +46,23 @@ enum BorderKind {
     Square,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum PaddingPreset {
+    #[default]
+    Default,
+    Alt2,
+    Alt3,
+}
+
 #[derive(Default)]
 struct App {
     selected: usize,
     mode: DemoMode,
     border_kind: BorderKind,
     show_indicator: bool,
+    padding_preset: PaddingPreset,
+    tab_bar_end: TabBarEnd,
+    all_caps: bool,
     vertical_labels: Vec<String>,
 }
 
@@ -81,6 +92,26 @@ impl App {
                         self.border_kind = match self.border_kind {
                             BorderKind::Rounded => BorderKind::Square,
                             BorderKind::Square => BorderKind::Rounded,
+                        };
+                    }
+
+                    KeyCode::Char('1') => {
+                        self.padding_preset = match self.padding_preset {
+                            PaddingPreset::Default => PaddingPreset::Alt2,
+                            PaddingPreset::Alt2 => PaddingPreset::Alt3,
+                            PaddingPreset::Alt3 => PaddingPreset::Default,
+                        };
+                    }
+
+                    KeyCode::Char('c') | KeyCode::Char('C') => {
+                        self.all_caps = !self.all_caps;
+                    }
+
+                    KeyCode::Char('2') => {
+                        self.tab_bar_end = match self.tab_bar_end {
+                            TabBarEnd::NoEnd => TabBarEnd::Angl,
+                            TabBarEnd::Angl => TabBarEnd::Rnd,
+                            TabBarEnd::Rnd => TabBarEnd::NoEnd,
                         };
                     }
 
@@ -126,6 +157,34 @@ impl App {
         set
     }
 
+    fn padding_for_mode(&self) -> Option<TabPadding> {
+        match (self.mode, self.padding_preset) {
+            (_, PaddingPreset::Default) => None,
+            (DemoMode::Horizontal, PaddingPreset::Alt2) => Some(TabPadding::axes(1, 1)),
+            (DemoMode::Horizontal, PaddingPreset::Alt3) => Some(TabPadding::axes(5, 5)),
+            (DemoMode::Vertical, PaddingPreset::Alt2) => Some(TabPadding::uniform(3)),
+            (DemoMode::Vertical, PaddingPreset::Alt3) => Some(TabPadding::new(1, 1, 2, 2)),
+        }
+    }
+
+    fn padding_label(&self) -> &'static str {
+        match (self.mode, self.padding_preset) {
+            (_, PaddingPreset::Default) => "default",
+            (DemoMode::Horizontal, PaddingPreset::Alt2) => "1/1",
+            (DemoMode::Horizontal, PaddingPreset::Alt3) => "5/5",
+            (DemoMode::Vertical, PaddingPreset::Alt2) => "3³",
+            (DemoMode::Vertical, PaddingPreset::Alt3) => "1,2",
+        }
+    }
+
+    fn tab_bar_end_label(&self) -> &'static str {
+        match self.tab_bar_end {
+            TabBarEnd::NoEnd => "none",
+            TabBarEnd::Angl => "angl",
+            TabBarEnd::Rnd => "rnd",
+        }
+    }
+
     fn styled_tab_nav<'a>(&self, tabs: &'a [&'a str]) -> TabNav<'a> {
         let bg = Color::Rgb(20, 20, 40);
         let highlight = Color::LightBlue;
@@ -135,6 +194,12 @@ impl App {
         let mut nav = TabNav::new(tabs, self.selected).border_set(self.tab_border_set());
         if self.mode == DemoMode::Vertical {
             nav = nav.orientation(TabOrientation::Vertical);
+        }
+
+        nav = nav.tab_bar_end(self.tab_bar_end).all_caps(self.all_caps);
+
+        if let Some(pad) = self.padding_for_mode() {
+            nav = nav.padding(pad);
         }
 
         nav = nav
@@ -150,11 +215,8 @@ impl App {
     }
 
     fn vertical_rail_width(&self) -> u16 {
-        self.vertical_labels
-            .iter()
-            .map(|label| label.lines().map(|line| line.len()).max().unwrap_or(0) as u16 + 8)
-            .max()
-            .unwrap_or(8)
+        let label_refs: Vec<&str> = self.vertical_labels.iter().map(String::as_str).collect();
+        self.styled_tab_nav(&label_refs).vertical_rail_width()
     }
 
     fn shortcut_footer_line(&self) -> Line<'static> {
@@ -170,6 +232,9 @@ impl App {
             DemoMode::Vertical => "vertical",
         };
         let indicator_label = if self.show_indicator { "on" } else { "off" };
+        let padding_label = self.padding_label();
+        let end_label = self.tab_bar_end_label();
+        let caps_label = if self.all_caps { "on" } else { "off" };
 
         let mut spans = Vec::new();
 
@@ -213,6 +278,18 @@ impl App {
             key("B"),
             dim(" border ("),
             Span::styled(border_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("1"),
+            dim(" pad ("),
+            Span::styled(padding_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("2"),
+            dim(" end ("),
+            Span::styled(end_label, Style::new().fg(Color::DarkGray)),
+            dim(") | "),
+            key("C"),
+            dim(" caps ("),
+            Span::styled(caps_label, Style::new().fg(Color::DarkGray)),
             dim(") | "),
             key("q"),
             dim(" quit"),
@@ -317,8 +394,12 @@ impl Widget for &App {
 
 impl App {
     fn render_horizontal(&self, area: Rect, buf: &mut Buffer, bg: Color, border_color: Color) {
-        let [tabs, content] =
-            Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(area);
+        let strip_height = self.styled_tab_nav(TABS).horizontal_strip_height();
+        let [tabs, content] = Layout::vertical([
+            Constraint::Length(strip_height),
+            Constraint::Fill(1),
+        ])
+        .areas(area);
 
         self.styled_tab_nav(TABS).render(tabs, buf);
 
