@@ -55,8 +55,9 @@ pub fn vertical_label(text: &str) -> String {
 /// continuous.
 ///
 /// - [`TabOrientation::Horizontal`]: baseline along the bottom; requires height ≥ 3.
+///   Indicator defaults to `Some("▸")`.
 /// - [`TabOrientation::Vertical`]: baseline along the right edge; requires width ≥ 3.
-///   Use [`vertical_label`] or embed `\n` in labels for stacked characters.
+///   Indicator defaults to `None`. Use [`vertical_label`] or embed `\n` in labels.
 #[must_use]
 pub struct TabNav<'a> {
     tabs: &'a [&'a str],
@@ -67,6 +68,7 @@ pub struct TabNav<'a> {
     highlight_bold: bool,
     border_style: Style,
     indicator: Option<&'a str>,
+    indicator_explicit: bool,
     border_set: symbols::border::Set<'a>,
 }
 
@@ -85,6 +87,7 @@ impl<'a> TabNav<'a> {
             highlight_bold: true,
             border_style: Style::new(),
             indicator: Some(DEFAULT_INDICATOR),
+            indicator_explicit: false,
             border_set: symbols::border::ROUNDED,
         }
     }
@@ -120,10 +123,13 @@ impl<'a> TabNav<'a> {
         self
     }
 
-    /// Symbol shown beside the active tab label. Default: `Some("▸")`.
-    /// Pass `None` to disable.
+    /// Symbol shown beside the active tab label.
+    ///
+    /// Default: `Some("▸")` for horizontal tabs, `None` for vertical tabs.
+    /// Pass `Some("…")` or `None` to override either default.
     pub fn indicator(mut self, indicator: Option<&'a str>) -> Self {
         self.indicator = indicator;
+        self.indicator_explicit = true;
         self
     }
 
@@ -158,6 +164,20 @@ fn horizontal_tab_width(label: &str) -> u16 {
 /// Vertical: fixed rail width, variable height per label line count.
 fn vertical_tab_height(label: &str) -> u16 {
     label_line_count(label) + TAB_FRAME
+}
+
+fn effective_indicator<'a>(nav: &TabNav<'a>) -> Option<&'a str> {
+    if nav.indicator_explicit {
+        nav.indicator
+    } else if nav.orientation == TabOrientation::Vertical {
+        None
+    } else {
+        Some(DEFAULT_INDICATOR)
+    }
+}
+
+fn label_origin(left: u16, top: u16) -> (u16, u16) {
+    (left + TAB_BORDER + TAB_PAD, top + TAB_BORDER + TAB_PAD)
 }
 
 fn vertical_rail_width(tabs: &[&str]) -> u16 {
@@ -208,7 +228,7 @@ fn render_horizontal(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         draw_horizontal_label(left_x, right_x, mid_y, label, text_style, buf);
 
         if active {
-            if let Some(sym) = nav.indicator {
+            if let Some(sym) = effective_indicator(&nav) {
                 buf[(left_x + TAB_PAD, mid_y)]
                     .set_symbol(sym)
                     .set_style(text_style);
@@ -248,10 +268,13 @@ fn render_vertical(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
         draw_bottom_border(left_x, right_x, bot_y, border, bs, buf);
 
         if active {
-            if let Some(sym) = nav.indicator {
-                buf[(left_x + TAB_PAD, top_y + TAB_PAD)]
-                    .set_symbol(sym)
-                    .set_style(text_style);
+            if let Some(sym) = effective_indicator(&nav) {
+                let (label_x, label_y) = label_origin(left_x, top_y);
+                if label_y > top_y + TAB_BORDER {
+                    buf[(label_x, label_y - 1)]
+                        .set_symbol(sym)
+                        .set_style(text_style);
+                }
             }
             draw_active_right(left_x, right_x, top_y, bot_y, border, bs, buf);
         } else {
@@ -474,21 +497,13 @@ fn draw_active_right(
     right: u16,
     top: u16,
     bottom: u16,
-    border: &symbols::border::Set,
+    _border: &symbols::border::Set,
     style: Style,
     buf: &mut Buffer,
 ) {
-    buf[(right, top)]
-        .set_symbol(border.bottom_left)
-        .set_style(style);
-
     for y in (top + 1)..bottom {
         buf[(right, y)].set_symbol(" ").set_style(style);
     }
-
-    buf[(right, bottom)]
-        .set_symbol(border.top_right)
-        .set_style(style);
 }
 
 fn draw_inactive_vertical_right(_left: u16, right: u16, top: u16, bottom: u16, style: Style, buf: &mut Buffer) {
@@ -635,19 +650,51 @@ mod tests {
     }
 
     #[test]
-    fn vertical_single_tab_renders_stacked_label() {
-        let label = vertical_label("Log");
+    fn vertical_default_indicator_disabled() {
+        let label = vertical_label("Tab");
         let label = label.as_str();
         let width = vertical_rail_width(&[label]);
         let height = vertical_tab_height(label);
         let buf = render_vertical(&[label], 0, width, height);
         let label_col = col_str(&buf, 4);
-        let indicator_col = col_str(&buf, 3);
+        assert!(!label_col.contains('▸'));
+    }
+
+    #[test]
+    fn vertical_single_tab_renders_stacked_label() {
+        let label = vertical_label("Log");
+        let label = label.as_str();
+        let width = vertical_rail_width(&[label]);
+        let height = vertical_tab_height(label);
+        let area = Rect::new(0, 0, width, height);
+        let mut buf = Buffer::empty(area);
+        TabNav::new(&[label], 0)
+            .orientation(TabOrientation::Vertical)
+            .indicator(Some(DEFAULT_INDICATOR))
+            .render(area, &mut buf);
+        let label_col = col_str(&buf, 4);
+        let indicator_col = col_str(&buf, 4);
 
         assert!(label_col.contains("L"));
         assert!(label_col.contains("o"));
         assert!(label_col.contains("g"));
-        assert!(indicator_col.contains("▸"));
+        assert!(indicator_col.contains('▸'));
+        assert_eq!(buf[(4, 3)].symbol(), "▸");
+        assert_eq!(buf[(4, 4)].symbol(), "L");
+    }
+
+    #[test]
+    fn vertical_active_tab_top_border_uses_top_right_corner() {
+        let label = vertical_label("Tab");
+        let label = label.as_str();
+        let width = vertical_rail_width(&[label]);
+        let height = vertical_tab_height(label);
+        let buf = render_vertical(&[label], 0, width, height);
+        let top_line = line_str(&buf, 0);
+
+        assert!(top_line.starts_with('╭'));
+        assert!(top_line.ends_with('╮'));
+        assert!(!top_line.ends_with('╰'));
     }
 
     #[test]
@@ -658,9 +705,11 @@ mod tests {
         let height = vertical_tab_height(label);
         let buf = render_vertical(&[label], 0, width, height);
         let right_col = col_str(&buf, width - 1);
+        let glyphs: Vec<char> = right_col.chars().collect();
 
-        assert!(right_col.starts_with('╰'));
-        assert!(right_col.ends_with('╮'));
+        assert_eq!(glyphs.first(), Some(&'╮'));
+        assert!(glyphs[1..glyphs.len() - 1].iter().all(|&ch| ch == ' '));
+        assert_eq!(glyphs.last(), Some(&'╯'));
     }
 
     #[test]
