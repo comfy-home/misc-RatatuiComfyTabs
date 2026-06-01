@@ -2,6 +2,44 @@
 
 Newest archived changelogs first. When multiple archived files represent the same version, only the newest archive is included here.
 
+## Changelog `v0.3.4` <sup><div align="end">🗓️ 2026-06-01</div></sup>
+
+### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
+
+#### **1. &nbsp;&nbsp;&nbsp;Just a HOTFIX release.**
+- Fixes wrong border render of the first tab when this tab is selected
+- This bug affected only horizontal configuration
+- SORTED!
+
+
+<sub>...  🎉 Enjoy!</sub>
+
+<br>
+
+### 🐛 Fix(es)
+
+* update horizontal tab bar rendering to reflect selection state in left cap <sub><sup><sup>_36af7c9_</sup></sup></sub>
+
+### 🔧 Maintenance
+
+* CG app version bump to v0.3.4 <sub><sup><sup>_985e95c_</sup></sup></sub>
+
+### ℹ️ Documentation
+
+* enhance documentation for TabBarEnd variants to clarify square and rounded cap behavior <sub><sup><sup>_051474b_</sup></sup></sub>
+
+* update README.md with repository badges and improve TabBarEnd table formatting <sub><sup><sup>_3ac5cdc_</sup></sup></sub>
+
+### 🧪 Tests
+
+* add tests for horizontal tab bar rendering with selection state and inactive tabs <sub><sup><sup>_d2b5e88_</sup></sup></sub>
+
+### 📝 Other
+
+* Merge pull request #13 (via ComfyGit) <sub><sup><sup>_c45f44a_</sup></sup></sub>
+
+---
+
 ## Changelog `v0.3.3` <sup><div align="end">🗓️ 2026-05-31</div></sup>
 
 ### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
