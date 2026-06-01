@@ -9,8 +9,10 @@ use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
 
 use crate::config::{
-    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabWheelDirection,
+    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
+    TabWheelDirection,
 };
+use crate::reorder::try_reorder;
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
     effective_padding,
@@ -608,4 +610,34 @@ fn tab_index_at_returns_none_outside_tabs() {
     let nav = TabNav::new(&["A", "B"], 0);
     let area = Rect::new(0, 0, 20, 3);
     assert!(nav.tab_index_at(area, 0, 50, 1).is_none());
+}
+
+#[test]
+fn mouse_reorder_moves_unpinned_tab() {
+    let mut labels = vec!["A", "B", "C", "D"];
+    let pinned = [true, false, true, false];
+    let nav = TabNav::new(&labels, 0)
+        .reorder_policy(TabReorderPolicy::SomePinned)
+        .tab_pinned(&pinned)
+        .mouse_reorder(true);
+    let area = Rect::new(0, 0, 48, 3);
+    let rects = nav.tab_rects(area);
+    let mut state = TabNavState::new(0);
+    let from_col = rects[1].x + 1;
+    let to_col = rects[3].x + 1;
+    assert!(state.handle_mouse_reorder_press(&nav, area, from_col, 1));
+    state.handle_mouse_reorder_drag(&nav, area, to_col, 1);
+    let reorder = state
+        .handle_mouse_reorder_release(&nav)
+        .expect("expected reorder");
+    assert_eq!(reorder.from, 1);
+    assert_eq!(reorder.to, 3);
+    assert!(try_reorder(
+        &mut labels,
+        reorder.from,
+        reorder.to,
+        TabReorderPolicy::SomePinned,
+        Some(&pinned),
+    ));
+    assert_eq!(labels, ["A", "C", "D", "B"]);
 }
