@@ -7,7 +7,7 @@
 
 use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
-use ratatui_core::style::Color;
+use ratatui_core::style::{Color, Style};
 use ratatui_core::widgets::StatefulWidget;
 
 use crate::config::{
@@ -656,6 +656,7 @@ fn reorder_drag_highlights_source_tab_with_indexed_46() {
     state.reorder_drag = Some(TabReorderDrag {
         source: 1,
         hover: 1,
+        armed: true,
     });
     StatefulWidget::render(nav, area, &mut buf, &mut state);
     let tab = rects[1];
@@ -673,4 +674,61 @@ fn reorder_drag_highlights_source_tab_with_indexed_46() {
         }
     }
     assert!(found, "expected label B in dragged tab rect");
+}
+
+#[test]
+fn reorder_press_without_armed_does_not_highlight() {
+    let nav = TabNav::new(&["A", "B", "C"], 0)
+        .reorder_policy(TabReorderPolicy::NonePinned)
+        .mouse_reorder(true)
+        .border_style(Style::new().fg(Color::White));
+    let area = Rect::new(0, 0, 30, 3);
+    let rects = nav.tab_rects(area);
+    let mut buf = Buffer::empty(area);
+    let mut state = TabNavState::new(0);
+    state.reorder_drag = Some(TabReorderDrag {
+        source: 1,
+        hover: 1,
+        armed: false,
+    });
+    StatefulWidget::render(nav, area, &mut buf, &mut state);
+    let tab = rects[1];
+    let corner_fg = buf[(tab.x, tab.y)].fg;
+    assert_eq!(
+        corner_fg,
+        Color::White,
+        "unarmed drag must not apply indexed-46 border"
+    );
+    assert_ne!(corner_fg, Color::Indexed(46));
+}
+
+#[test]
+fn selection_flash_highlights_border_not_label() {
+    let nav = TabNav::new(&["A", "B"], 0)
+        .border_style(Style::new().fg(Color::White))
+        .style(Style::new().fg(Color::White));
+    let area = Rect::new(0, 0, 20, 3);
+    let rects = nav.tab_rects(area);
+    let mut buf = Buffer::empty(area);
+    let mut state = TabNavState::new(0);
+    state.flash_selection(1);
+    StatefulWidget::render(nav, area, &mut buf, &mut state);
+    let tab = rects[1];
+    let mut border_46 = false;
+    let mut label_46 = false;
+    for y in tab.y..tab.bottom() {
+        for x in tab.x..tab.right() {
+            let cell = &buf[(x, y)];
+            if cell.fg != Color::Indexed(46) {
+                continue;
+            }
+            if cell.symbol() == "B" {
+                label_46 = true;
+            } else {
+                border_46 = true;
+            }
+        }
+    }
+    assert!(border_46, "expected border fg 46 during flash");
+    assert!(!label_46, "label must not use flash color");
 }

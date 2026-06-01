@@ -179,6 +179,15 @@ impl App {
         loop {
             terminal.draw(|frame| self.draw(frame))?;
 
+            let poll_timeout = if self.tab_state.selection_flash_active() {
+                Duration::from_millis(50)
+            } else {
+                Duration::from_secs(24 * 60 * 60)
+            };
+            if !event::poll(poll_timeout)? {
+                continue;
+            }
+
             match event::read()? {
                 Event::Key(key) => match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
@@ -275,6 +284,19 @@ impl App {
                         self.record_command(format!(
                             "self.mouse_click = !self.mouse_click;  // {}",
                             self.mouse_click
+                        ));
+                    }
+
+                    KeyCode::Char('H') => {
+                        self.tab_state.selection_flash_enabled =
+                            !self.tab_state.selection_flash_enabled;
+                        if !self.tab_state.selection_flash_enabled {
+                            self.tab_state.cancel_selection_flash();
+                        }
+                        self.record_command(format!(
+                            "tab_state.selection_flash_enabled = {}; .selection_flash({})",
+                            self.tab_state.selection_flash_enabled,
+                            self.tab_state.selection_flash_enabled
                         ));
                     }
 
@@ -517,6 +539,7 @@ impl App {
             self.tab_state.reorder_drag = Some(ratatui_comfy_tabs::TabReorderDrag {
                 source: drag.hover,
                 hover: drag.hover,
+                armed: true,
             });
             self.record_command(format!(
                 "try_reorder(&mut tab_order, {}, {}, {:?}, …);",
@@ -744,7 +767,8 @@ impl App {
         nav = nav
             .style(Style::new().fg(dim).bg(bg))
             .highlight_style(Style::new().fg(highlight).bg(bg))
-            .border_style(Style::new().fg(border_color).bg(bg));
+            .border_style(Style::new().fg(border_color).bg(bg))
+            .selection_flash(self.tab_state.selection_flash_enabled);
 
         if self.show_indicator {
             nav.indicator(Some(INDICATOR))
@@ -876,6 +900,19 @@ impl App {
                 key("P"),
                 dim(" reorder ("),
                 Span::styled(reorder_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("H"),
+                dim(" flash ("),
+                Span::styled(
+                    if self.tab_state.selection_flash_enabled {
+                        "on"
+                    } else {
+                        "off"
+                    },
+                    Style::new().fg(Color::DarkGray),
+                ),
                 dim(")"),
             ],
             vec![key("["), dim("/"), key("]"), dim(" scroll")],
