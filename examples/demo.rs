@@ -335,7 +335,7 @@ impl App {
                         ));
                     }
 
-                    KeyCode::Left | KeyCode::Char('h') if self.mode == DemoMode::Horizontal => {
+                    KeyCode::Left if self.mode == DemoMode::Horizontal => {
                         self.tab_state
                             .select_direction(TabAxis::Decrease.direction(), self.tab_order.len());
                         self.record_command(format!(
@@ -345,7 +345,7 @@ impl App {
                             self.selected_tab_name()
                         ));
                     }
-                    KeyCode::Right | KeyCode::Char('l') if self.mode == DemoMode::Horizontal => {
+                    KeyCode::Right if self.mode == DemoMode::Horizontal => {
                         self.tab_state
                             .select_direction(TabAxis::Increase.direction(), self.tab_order.len());
                         self.record_command(format!(
@@ -812,10 +812,6 @@ impl App {
 
         let nav = match self.mode {
             DemoMode::Horizontal => vec![
-                key("h"),
-                dim("/"),
-                key("l"),
-                dim(" or "),
                 key("←"),
                 dim("/"),
                 key("→"),
