@@ -21,13 +21,13 @@ use crate::layout::{
     horizontal_strip_height, label_char, label_origin, vertical_rail_width,
 };
 use crate::nav::TabNav;
-use crate::state::{TabNavState, TabReorderDrag};
+use crate::state::TabNavState;
 
 impl Widget for TabNav<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let selected = self.selected;
         let scroll_offset = self.scroll_offset;
-        render_tab_nav(&self, area, buf, selected, scroll_offset, None);
+        render_tab_nav(&self, area, buf, selected, scroll_offset, None, None);
     }
 }
 
@@ -35,6 +35,7 @@ impl StatefulWidget for TabNav<'_> {
     type State = TabNavState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        state.tick_selection_flash();
         render_tab_nav(
             &self,
             area,
@@ -42,6 +43,7 @@ impl StatefulWidget for TabNav<'_> {
             state.selected,
             state.scroll_offset,
             state.reorder_drag,
+            Some(state),
         );
     }
 }
@@ -52,7 +54,8 @@ fn render_tab_nav(
     buf: &mut Buffer,
     selected: usize,
     scroll_offset: usize,
-    reorder_drag: Option<TabReorderDrag>,
+    reorder_drag: Option<crate::state::TabReorderDrag>,
+    nav_state: Option<&TabNavState>,
 ) {
     if nav.tabs.is_empty() {
         return;
@@ -60,10 +63,10 @@ fn render_tab_nav(
 
     match nav.orientation {
         TabOrientation::Horizontal => {
-            render_horizontal(nav, area, buf, selected, scroll_offset, reorder_drag)
+            render_horizontal(nav, area, buf, selected, scroll_offset, reorder_drag, nav_state)
         }
         TabOrientation::Vertical => {
-            render_vertical(nav, area, buf, selected, scroll_offset, reorder_drag)
+            render_vertical(nav, area, buf, selected, scroll_offset, reorder_drag, nav_state)
         }
     }
 }
@@ -74,7 +77,8 @@ fn render_horizontal(
     buf: &mut Buffer,
     selected: usize,
     scroll_offset: usize,
-    reorder_drag: Option<TabReorderDrag>,
+    reorder_drag: Option<crate::state::TabReorderDrag>,
+    nav_state: Option<&TabNavState>,
 ) {
     let margin = effective_margin(nav);
     let pad = effective_padding(nav);
@@ -101,10 +105,12 @@ fn render_horizontal(
         let label = nav.tabs[entry.index];
         let active = entry.index == selected;
         let dragging = is_reorder_drag_source(entry.index, reorder_drag);
+        let selection_flash = nav_state
+            .is_some_and(|state| state.selection_flash_border_on(entry.index));
         let left_x = entry.offset;
         let right_x = entry.offset + entry.size - 1;
         let text_style = tab_text_style(nav, active, dragging);
-        let tab_border_style = tab_border_style(nav, bs, dragging);
+        let tab_border_style = tab_border_style(nav, bs, dragging, selection_flash);
 
         draw_top_border(left_x, right_x, top_y, border, tab_border_style, buf);
         draw_horizontal_side_borders(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
@@ -160,7 +166,8 @@ fn render_vertical(
     buf: &mut Buffer,
     selected: usize,
     scroll_offset: usize,
-    reorder_drag: Option<TabReorderDrag>,
+    reorder_drag: Option<crate::state::TabReorderDrag>,
+    nav_state: Option<&TabNavState>,
 ) {
     let margin = effective_margin(nav);
     let pad = effective_padding(nav);
@@ -199,10 +206,12 @@ fn render_vertical(
         }
         let active = entry.index == selected;
         let dragging = is_reorder_drag_source(entry.index, reorder_drag);
+        let selection_flash = nav_state
+            .is_some_and(|state| state.selection_flash_border_on(entry.index));
         let top_y = entry.offset;
         let bot_y = entry.offset + entry.size - 1;
         let text_style = tab_text_style(nav, active, dragging);
-        let tab_border_style = tab_border_style(nav, bs, dragging);
+        let tab_border_style = tab_border_style(nav, bs, dragging, selection_flash);
 
         draw_top_border(left_x, right_x, top_y, border, tab_border_style, buf);
         draw_vertical_side_borders(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
@@ -286,12 +295,20 @@ fn draw_vertical_overflow_affordances(
     }
 }
 
-fn is_reorder_drag_source(tab_index: usize, reorder_drag: Option<TabReorderDrag>) -> bool {
-    reorder_drag.is_some_and(|drag| drag.source == tab_index)
+fn is_reorder_drag_source(
+    tab_index: usize,
+    reorder_drag: Option<crate::state::TabReorderDrag>,
+) -> bool {
+    reorder_drag.is_some_and(|drag| drag.armed && drag.source == tab_index)
 }
 
 /// Default drag highlight: ANSI indexed foreground **46** (bright green).
 pub(crate) fn default_reorder_drag_style() -> Style {
+    Style::new().fg(Color::Indexed(46))
+}
+
+/// Default selection-flash border: ANSI indexed foreground **46**.
+pub(crate) fn default_selection_flash_style() -> Style {
     Style::new().fg(Color::Indexed(46))
 }
 
@@ -300,17 +317,31 @@ fn effective_reorder_drag_style(nav: &TabNav<'_>) -> Style {
         .unwrap_or_else(default_reorder_drag_style)
 }
 
-fn tab_border_style(nav: &TabNav<'_>, base: Style, dragging: bool) -> Style {
+fn effective_selection_flash_style(nav: &TabNav<'_>) -> Style {
+    nav.selection_flash_style
+        .unwrap_or_else(default_selection_flash_style)
+}
+
+fn tab_border_style(
+    nav: &TabNav<'_>,
+    base: Style,
+    dragging: bool,
+    selection_flash: bool,
+) -> Style {
     if dragging {
         let drag = effective_reorder_drag_style(nav);
         if let Some(fg) = drag.fg {
-            base.fg(fg)
-        } else {
-            base
+            return base.fg(fg);
         }
-    } else {
-        base
+        return base;
     }
+    if nav.selection_flash_enabled && selection_flash {
+        let flash = effective_selection_flash_style(nav);
+        if let Some(fg) = flash.fg {
+            return base.fg(fg);
+        }
+    }
+    base
 }
 
 fn tab_text_style(nav: &TabNav<'_>, active: bool, dragging: bool) -> Style {
