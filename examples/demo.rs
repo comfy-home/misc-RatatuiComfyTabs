@@ -1033,12 +1033,22 @@ impl App {
             frame.buffer_mut(),
             border_color,
             bg,
-            &format!(
-                "selected: {} · scroll_offset: {}",
-                self.selected_tab_name(),
-                self.tab_state.scroll_offset
-            ),
+            &self.content_status_text(),
         );
+    }
+
+    fn content_status_text(&self) -> String {
+        let drag = self
+            .tab_state
+            .reorder_drag
+            .map(|d| format!(" · dragging tab {}", d.source))
+            .unwrap_or_default();
+        format!(
+            "selected: {} · scroll_offset: {}{}",
+            self.selected_tab_name(),
+            self.tab_state.scroll_offset,
+            drag
+        )
     }
 
     fn render_vertical(&mut self, frame: &mut Frame, area: Rect, bg: Color, border_color: Color) {
@@ -1073,11 +1083,7 @@ impl App {
             frame.buffer_mut(),
             border_color,
             bg,
-            &format!(
-                "selected: {} · scroll_offset: {}",
-                self.selected_tab_name(),
-                self.tab_state.scroll_offset
-            ),
+            &self.content_status_text(),
         );
     }
 }
