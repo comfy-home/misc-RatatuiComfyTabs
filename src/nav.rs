@@ -9,7 +9,10 @@ use ratatui_core::layout::{Position, Rect};
 use ratatui_core::style::Style;
 use ratatui_core::symbols;
 
-use crate::config::{OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding};
+use crate::config::{
+    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
+};
+use crate::reorder::can_drag_index;
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
     effective_padding, horizontal_strip_height, vertical_rail_width,
@@ -93,6 +96,9 @@ pub struct TabNav<'a> {
     pub(crate) overflow_affordance: bool,
     pub(crate) mouse_wheel: bool,
     pub(crate) mouse_click: bool,
+    pub(crate) reorder_policy: TabReorderPolicy,
+    pub(crate) tab_pinned: Option<&'a [bool]>,
+    pub(crate) mouse_reorder: bool,
 }
 
 impl<'a> TabNav<'a> {
@@ -119,6 +125,9 @@ impl<'a> TabNav<'a> {
             overflow_affordance: true,
             mouse_wheel: true,
             mouse_click: true,
+            reorder_policy: TabReorderPolicy::default(),
+            tab_pinned: None,
+            mouse_reorder: false,
         }
     }
 
@@ -242,6 +251,39 @@ impl<'a> TabNav<'a> {
     /// Whether mouse click tab selection is enabled for this widget.
     pub const fn mouse_click_enabled(&self) -> bool {
         self.mouse_click
+    }
+
+    /// Tab reorder policy. Default: [`TabReorderPolicy::AllPinned`] (no drag reorder).
+    pub fn reorder_policy(mut self, policy: TabReorderPolicy) -> Self {
+        self.reorder_policy = policy;
+        self
+    }
+
+    /// Per-tab pin flags for [`TabReorderPolicy::SomePinned`] (`true` = fixed slot).
+    pub fn tab_pinned(mut self, pinned: &'a [bool]) -> Self {
+        self.tab_pinned = Some(pinned);
+        self
+    }
+
+    /// Enable mouse drag-and-drop reordering (requires a non-[`TabReorderPolicy::AllPinned`] policy).
+    pub fn mouse_reorder(mut self, enabled: bool) -> Self {
+        self.mouse_reorder = enabled;
+        self
+    }
+
+    /// Active reorder policy for this widget.
+    pub const fn reorder_policy_value(&self) -> TabReorderPolicy {
+        self.reorder_policy
+    }
+
+    /// Whether drag reordering is enabled (policy + [`mouse_reorder`](Self::mouse_reorder)).
+    pub fn reorder_enabled(&self) -> bool {
+        self.mouse_reorder && self.reorder_policy != TabReorderPolicy::AllPinned
+    }
+
+    /// Whether the tab at `index` may be dragged.
+    pub fn can_drag_tab(&self, index: usize) -> bool {
+        can_drag_index(index, self.reorder_policy, self.tab_pinned)
     }
 
     /// Auto-computed width for tab `index` using the current padding (ignores [`tab_widths`]).
