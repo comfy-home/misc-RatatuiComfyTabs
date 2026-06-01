@@ -11,7 +11,7 @@ homepage = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
 repository = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
 readme = "README.md"
 rust-version = "1.95"
-exclude = ["screenshots/"]
+exclude = ["assets/*.gif"]
 
 [package.metadata]
 alt_repositary = "https://github.com/comfy-home/misc-RatatuiComfyTabs"
