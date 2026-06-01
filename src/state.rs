@@ -10,6 +10,16 @@ use ratatui_core::layout::Rect;
 use crate::config::{OverflowPolicy, TabDirection, TabWheelDirection};
 use crate::layout::compute_viewport;
 use crate::nav::TabNav;
+use crate::reorder::{TabReorder, can_drag_index, can_drop_at};
+
+/// In-progress mouse drag for tab reordering.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TabReorderDrag {
+    /// Display index of the tab being dragged.
+    pub source: usize,
+    /// Current hover index (valid drop target).
+    pub hover: usize,
+}
 
 /// Mutable tab selection and scroll state for [`StatefulWidget`](ratatui_core::widgets::StatefulWidget) rendering.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -18,6 +28,8 @@ pub struct TabNavState {
     pub selected: usize,
     /// Index of the first visible tab when [`OverflowPolicy::Scroll`] is active.
     pub scroll_offset: usize,
+    /// Active drag when reordering tabs with the mouse.
+    pub reorder_drag: Option<TabReorderDrag>,
 }
 
 impl TabNavState {
@@ -26,7 +38,13 @@ impl TabNavState {
         Self {
             selected,
             scroll_offset: 0,
+            reorder_drag: None,
         }
+    }
+
+    /// Whether a tab reorder drag is in progress.
+    pub const fn is_reorder_dragging(&self) -> bool {
+        self.reorder_drag.is_some()
     }
 
     /// Sets the selected tab, clamped to `tab_count`.
@@ -175,10 +193,96 @@ impl TabNavState {
             return false;
         };
 
+        if self.is_reorder_dragging() {
+            return false;
+        }
+
         self.select(index, nav.tabs.len());
         if nav.overflow == OverflowPolicy::Scroll {
             self.ensure_selected_visible(nav, area);
         }
         true
+    }
+
+    /// Starts a reorder drag on a draggable tab. Returns `true` when drag began.
+    pub fn handle_mouse_reorder_press(
+        &mut self,
+        nav: &TabNav<'_>,
+        area: Rect,
+        mouse_column: u16,
+        mouse_row: u16,
+    ) -> bool {
+        if !nav.reorder_enabled() {
+            return false;
+        }
+
+        let Some(index) = nav.tab_index_at(area, self.scroll_offset, mouse_column, mouse_row)
+        else {
+            return false;
+        };
+
+        if !can_drag_index(index, nav.reorder_policy, nav.tab_pinned) {
+            return false;
+        }
+
+        self.reorder_drag = Some(TabReorderDrag {
+            source: index,
+            hover: index,
+        });
+        true
+    }
+
+    /// Updates the hover slot while dragging. Returns `true` when a drag is active.
+    pub fn handle_mouse_reorder_drag(
+        &mut self,
+        nav: &TabNav<'_>,
+        area: Rect,
+        mouse_column: u16,
+        mouse_row: u16,
+    ) -> bool {
+        let Some(drag) = self.reorder_drag.as_mut() else {
+            return false;
+        };
+
+        let Some(hover) = nav.tab_index_at(area, self.scroll_offset, mouse_column, mouse_row)
+        else {
+            return true;
+        };
+
+        if can_drop_at(
+            drag.source,
+            hover,
+            nav.reorder_policy,
+            nav.tab_pinned,
+        ) {
+            drag.hover = hover;
+        }
+        true
+    }
+
+    /// Ends a reorder drag. Returns [`TabReorder`] when the tab moved to a new slot.
+    pub fn handle_mouse_reorder_release(&mut self, nav: &TabNav<'_>) -> Option<TabReorder> {
+        let drag = self.reorder_drag.take()?;
+        if drag.source == drag.hover {
+            return None;
+        }
+        if !can_drop_at(
+            drag.source,
+            drag.hover,
+            nav.reorder_policy,
+            nav.tab_pinned,
+        ) {
+            return None;
+        }
+        self.selected = crate::reorder::remap_selected_index(self.selected, drag.source, drag.hover);
+        Some(TabReorder {
+            from: drag.source,
+            to: drag.hover,
+        })
+    }
+
+    /// Cancels an in-progress reorder drag without applying it.
+    pub fn cancel_reorder_drag(&mut self) {
+        self.reorder_drag = None;
     }
 }
