@@ -8,7 +8,7 @@
 use ratatui_core::{
     buffer::Buffer,
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     symbols,
     widgets::{StatefulWidget, Widget},
 };
@@ -21,13 +21,13 @@ use crate::layout::{
     horizontal_strip_height, label_char, label_origin, vertical_rail_width,
 };
 use crate::nav::TabNav;
-use crate::state::TabNavState;
+use crate::state::{TabNavState, TabReorderDrag};
 
 impl Widget for TabNav<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let selected = self.selected;
         let scroll_offset = self.scroll_offset;
-        render_tab_nav(&self, area, buf, selected, scroll_offset);
+        render_tab_nav(&self, area, buf, selected, scroll_offset, None);
     }
 }
 
@@ -35,7 +35,14 @@ impl StatefulWidget for TabNav<'_> {
     type State = TabNavState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        render_tab_nav(&self, area, buf, state.selected, state.scroll_offset);
+        render_tab_nav(
+            &self,
+            area,
+            buf,
+            state.selected,
+            state.scroll_offset,
+            state.reorder_drag,
+        );
     }
 }
 
@@ -45,14 +52,19 @@ fn render_tab_nav(
     buf: &mut Buffer,
     selected: usize,
     scroll_offset: usize,
+    reorder_drag: Option<TabReorderDrag>,
 ) {
     if nav.tabs.is_empty() {
         return;
     }
 
     match nav.orientation {
-        TabOrientation::Horizontal => render_horizontal(nav, area, buf, selected, scroll_offset),
-        TabOrientation::Vertical => render_vertical(nav, area, buf, selected, scroll_offset),
+        TabOrientation::Horizontal => {
+            render_horizontal(nav, area, buf, selected, scroll_offset, reorder_drag)
+        }
+        TabOrientation::Vertical => {
+            render_vertical(nav, area, buf, selected, scroll_offset, reorder_drag)
+        }
     }
 }
 
@@ -62,6 +74,7 @@ fn render_horizontal(
     buf: &mut Buffer,
     selected: usize,
     scroll_offset: usize,
+    reorder_drag: Option<TabReorderDrag>,
 ) {
     let margin = effective_margin(nav);
     let pad = effective_padding(nav);
@@ -87,12 +100,14 @@ fn render_horizontal(
     for entry in &viewport.entries {
         let label = nav.tabs[entry.index];
         let active = entry.index == selected;
+        let dragging = is_reorder_drag_source(entry.index, reorder_drag);
         let left_x = entry.offset;
         let right_x = entry.offset + entry.size - 1;
-        let text_style = tab_text_style(nav, active);
+        let text_style = tab_text_style(nav, active, dragging);
+        let tab_border_style = tab_border_style(nav, bs, dragging);
 
-        draw_top_border(left_x, right_x, top_y, border, bs, buf);
-        draw_horizontal_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
+        draw_top_border(left_x, right_x, top_y, border, tab_border_style, buf);
+        draw_horizontal_side_borders(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
         draw_horizontal_label(
             left_x,
             right_x,
@@ -115,9 +130,9 @@ fn render_horizontal(
                     .set_symbol(sym)
                     .set_style(text_style);
             }
-            draw_active_bottom(left_x, right_x, bot_y, border, bs, buf);
+            draw_active_bottom(left_x, right_x, bot_y, border, tab_border_style, buf);
         } else {
-            draw_inactive_horizontal_bottom(left_x, right_x, bot_y, bs, buf);
+            draw_inactive_horizontal_bottom(left_x, right_x, bot_y, tab_border_style, buf);
         }
     }
 
@@ -145,6 +160,7 @@ fn render_vertical(
     buf: &mut Buffer,
     selected: usize,
     scroll_offset: usize,
+    reorder_drag: Option<TabReorderDrag>,
 ) {
     let margin = effective_margin(nav);
     let pad = effective_padding(nav);
@@ -182,12 +198,14 @@ fn render_vertical(
             first_rendered = Some((entry.index, entry.offset));
         }
         let active = entry.index == selected;
+        let dragging = is_reorder_drag_source(entry.index, reorder_drag);
         let top_y = entry.offset;
         let bot_y = entry.offset + entry.size - 1;
-        let text_style = tab_text_style(nav, active);
+        let text_style = tab_text_style(nav, active, dragging);
+        let tab_border_style = tab_border_style(nav, bs, dragging);
 
-        draw_top_border(left_x, right_x, top_y, border, bs, buf);
-        draw_vertical_side_borders(left_x, right_x, top_y, bot_y, border, bs, buf);
+        draw_top_border(left_x, right_x, top_y, border, tab_border_style, buf);
+        draw_vertical_side_borders(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
         draw_vertical_label(
             left_x,
             right_x,
@@ -198,7 +216,7 @@ fn render_vertical(
             text_style,
             buf,
         );
-        draw_bottom_border(left_x, right_x, bot_y, border, bs, buf);
+        draw_bottom_border(left_x, right_x, bot_y, border, tab_border_style, buf);
 
         if active {
             if let Some(sym) = effective_indicator(nav) {
@@ -209,9 +227,9 @@ fn render_vertical(
                         .set_style(text_style);
                 }
             }
-            draw_active_right(left_x, right_x, top_y, bot_y, border, bs, buf);
+            draw_active_right(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
         } else {
-            draw_inactive_vertical_right(left_x, right_x, top_y, bot_y, bs, buf);
+            draw_inactive_vertical_right(left_x, right_x, top_y, bot_y, tab_border_style, buf);
         }
     }
 
@@ -268,7 +286,41 @@ fn draw_vertical_overflow_affordances(
     }
 }
 
-fn tab_text_style(nav: &TabNav<'_>, active: bool) -> Style {
+fn is_reorder_drag_source(tab_index: usize, reorder_drag: Option<TabReorderDrag>) -> bool {
+    reorder_drag.is_some_and(|drag| drag.source == tab_index)
+}
+
+/// Default drag highlight: ANSI indexed foreground **46** (bright green).
+pub(crate) fn default_reorder_drag_style() -> Style {
+    Style::new().fg(Color::Indexed(46))
+}
+
+fn effective_reorder_drag_style(nav: &TabNav<'_>) -> Style {
+    nav.reorder_drag_style
+        .unwrap_or_else(default_reorder_drag_style)
+}
+
+fn tab_border_style(nav: &TabNav<'_>, base: Style, dragging: bool) -> Style {
+    if dragging {
+        let drag = effective_reorder_drag_style(nav);
+        if let Some(fg) = drag.fg {
+            base.fg(fg)
+        } else {
+            base
+        }
+    } else {
+        base
+    }
+}
+
+fn tab_text_style(nav: &TabNav<'_>, active: bool, dragging: bool) -> Style {
+    if dragging {
+        let mut style = effective_reorder_drag_style(nav);
+        if nav.highlight_bold || active {
+            style = style.add_modifier(Modifier::BOLD);
+        }
+        return style;
+    }
     if active {
         let mut style = nav.highlight_style;
         if nav.highlight_bold {

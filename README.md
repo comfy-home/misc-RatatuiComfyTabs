@@ -61,6 +61,7 @@ This release does not contain any highlighted features, [click here](https://git
 - [`StatefulWidget`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) with [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) and [`TabAxis`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) navigation helpers
 - Mouse wheel tab switching over the strip via [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) (enabled by default)
 - Mouse click tab selection via [`TabNavState::handle_mouse_click`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_click) (enabled by default)
+- Optional drag reorder via [`TabReorderPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabReorderPolicy.html) and mouse handlers; dragged tab highlighted in **indexed fg 46** by default
 - Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
@@ -120,7 +121,11 @@ ratatui-comfy-tabs
     │   ├── scroll_offset()        usize (stateless Scroll mode only)
     │   ├── overflow_affordance()  bool (default true)
     │   ├── mouse_wheel()          bool (default true; app must forward events)
-    │   └── mouse_click()          bool (default true; app must forward events)
+    │   ├── mouse_click()          bool (default true; app must forward events)
+    │   ├── reorder_policy()       AllPinned | NonePinned | SomePinned
+    │   ├── tab_pinned()           &[bool] for SomePinned
+    │   ├── mouse_reorder()        bool (default false; app must forward drag events)
+    │   └── reorder_drag_style()   Style (default fg indexed **46** while dragging)
     │
     ├── TabNavState (when using StatefulWidget or input helpers)
     │   ├── scroll_offset          usize (meaningful when overflow = Scroll)
@@ -129,7 +134,9 @@ ratatui-comfy-tabs
     │   ├── ensure_selected_visible()
     │   ├── select_direction_visible() / select_direction_wrapping_visible()
     │   ├── handle_mouse_wheel()   needs strip Rect + pointer + TabWheelDirection
-    │   └── handle_mouse_click()   needs strip Rect + pointer
+    │   ├── handle_mouse_click()   needs strip Rect + pointer
+    │   ├── handle_mouse_reorder_*  press / drag / release (StatefulWidget render shows drag highlight)
+    │   └── reorder_drag           in state during drag (drives indexed-46 highlight)
     │
     ├── Geometry / hit-test API (read-only helpers)
     │   ├── tab_rects() / tab_rects_with_scroll()
@@ -208,6 +215,10 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `overflow_affordance()` | `true` | `‹` / `›` / `…` at clipped edges |
 | `mouse_wheel()` | `true` | Allow wheel tab switching over the strip |
 | `mouse_click()` | `true` | Allow click tab selection on visible tabs |
+| `reorder_policy()` | `AllPinned` | `NonePinned` / `SomePinned` drag reorder — see [Tab reordering](#tab-reordering) |
+| `tab_pinned()` | — | Per-tab pin flags when policy is `SomePinned` |
+| `mouse_reorder()` | `false` | Enable drag reorder (app forwards press/drag/release) |
+| `reorder_drag_style()` | fg **46** | Label and border style for the tab being dragged |
 | `auto_tab_width()` / `auto_tab_height()` | — | Default size for one tab index |
 | `horizontal_strip_height()` | — | Minimum render height for horizontal layout |
 | `vertical_rail_width()` | — | Rail width for vertical layout (widest tab) |
@@ -361,6 +372,46 @@ if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
 
 Use [`TabNav::tab_index_at`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_index_at) when you need the hit target without changing selection. Disable with `.mouse_click(false)`.
 
+### Tab reordering
+
+Drag-and-drop reorder with optional **pinned** tabs. Default policy **`AllPinned`** keeps legacy fixed order (no drag).
+
+| Policy | Behaviour |
+|--------|-----------|
+| `AllPinned` (default) | No reordering |
+| `NonePinned` | Every tab may move |
+| `SomePinned` | `tab_pinned[i] == true` → fixed slot; others reorder among unpinned indices |
+
+```rust
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui_comfy_tabs::{
+    TabNav, TabNavState, TabReorderPolicy, try_reorder, remap_selected_index,
+};
+use ratatui_core::widgets::StatefulWidget;
+
+let pinned = [true, false, false]; // first tab fixed
+let nav = TabNav::new(&labels, selected)
+    .reorder_policy(TabReorderPolicy::SomePinned)
+    .tab_pinned(&pinned)
+    .mouse_reorder(true)
+    .reorder_drag_style(Style::new().fg(Color::Indexed(46))); // optional; 46 is the default
+
+let mut state = TabNavState::new(selected);
+// StatefulWidget::render(nav, area, buf, &mut state) — highlights drag.source in fg 46
+
+if state.handle_mouse_reorder_press(&nav, strip_area, col, row) {
+    // drag started
+}
+state.handle_mouse_reorder_drag(&nav, strip_area, col, row);
+if let Some(reorder) = state.handle_mouse_reorder_release(&nav) {
+    let _ = try_reorder(&mut tab_order, reorder.from, reorder.to, TabReorderPolicy::SomePinned, Some(&pinned));
+    state.selected = remap_selected_index(state.selected, reorder.from, reorder.to);
+}
+```
+
+While [`TabNavState::reorder_drag`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#structfield.reorder_drag) is set, the tab at `source` is drawn with [`.reorder_drag_style`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.reorder_drag_style) (default **foreground indexed color 46** on label and borders).
+
 ### Crate layout
 
 | Module | Role |
@@ -393,7 +444,9 @@ cargo run --example demo
 | `W`                | Toggle narrow tab strip (forces overflow)      |
 | `Y`                | Toggle mouse wheel tab switching               |
 | `X`                | Toggle mouse click tab selection               |
+| `P`                | Cycle reorder policy (`all` / `none` / `some` pinned) |
 | `[` / `]`          | Scroll tab window (scroll mode)                |
+| Drag tab           | Reorder when policy allows (Overview pinned in `some`) |
 | Scroll wheel       | Previous / next tab while hovering tabs        |
 | Left click         | Select tab under pointer                       |
 | `q` / `Esc`        | Quit                                           |
