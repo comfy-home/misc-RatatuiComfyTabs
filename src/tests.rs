@@ -198,11 +198,25 @@ fn two_active_tabs_layout() {
 }
 
 #[test]
-fn horizontal_tab_bar_end_sqr() {
+fn horizontal_tab_bar_end_sqr_selected() {
     let area = Rect::new(0, 0, 20, 3);
     let mut buf = Buffer::empty(area);
     draw(
         TabNav::new(&["Tab"], 0).tab_bar_end(TabBarEnd::Sqr),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert!(bot_line.starts_with('│'));
+    assert!(bot_line.ends_with('┐'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_sqr_inactive_first() {
+    let area = Rect::new(0, 0, 40, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["One", "Two"], 1).tab_bar_end(TabBarEnd::Sqr),
         area,
         &mut buf,
     );
@@ -212,11 +226,25 @@ fn horizontal_tab_bar_end_sqr() {
 }
 
 #[test]
-fn horizontal_tab_bar_end_rnd() {
+fn horizontal_tab_bar_end_rnd_selected() {
     let area = Rect::new(0, 0, 20, 3);
     let mut buf = Buffer::empty(area);
     draw(
         TabNav::new(&["Tab"], 0).tab_bar_end(TabBarEnd::Rnd),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert!(bot_line.starts_with('│'));
+    assert!(bot_line.ends_with('╮'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_rnd_inactive_first() {
+    let area = Rect::new(0, 0, 40, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["One", "Two"], 1).tab_bar_end(TabBarEnd::Rnd),
         area,
         &mut buf,
     );
