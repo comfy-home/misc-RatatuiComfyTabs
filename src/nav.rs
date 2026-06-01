@@ -99,6 +99,7 @@ pub struct TabNav<'a> {
     pub(crate) reorder_policy: TabReorderPolicy,
     pub(crate) tab_pinned: Option<&'a [bool]>,
     pub(crate) mouse_reorder: bool,
+    pub(crate) reorder_drag_style: Option<Style>,
 }
 
 impl<'a> TabNav<'a> {
@@ -128,6 +129,7 @@ impl<'a> TabNav<'a> {
             reorder_policy: TabReorderPolicy::default(),
             tab_pinned: None,
             mouse_reorder: false,
+            reorder_drag_style: None,
         }
     }
 
@@ -268,6 +270,12 @@ impl<'a> TabNav<'a> {
     /// Enable mouse drag-and-drop reordering (requires a non-[`TabReorderPolicy::AllPinned`] policy).
     pub fn mouse_reorder(mut self, enabled: bool) -> Self {
         self.mouse_reorder = enabled;
+        self
+    }
+
+    /// Style for the tab being dragged (label and borders). Default: foreground indexed color **46**.
+    pub fn reorder_drag_style(mut self, style: Style) -> Self {
+        self.reorder_drag_style = Some(style);
         self
     }
 
