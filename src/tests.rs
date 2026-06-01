@@ -7,6 +7,8 @@
 
 use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
+use ratatui_core::style::Color;
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::config::{
     OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
@@ -18,7 +20,7 @@ use crate::layout::{
     effective_padding,
 };
 use crate::nav::TabNav;
-use crate::state::TabNavState;
+use crate::state::{TabNavState, TabReorderDrag};
 use crate::{DEFAULT_INDICATOR, vertical_label};
 
 fn draw(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
@@ -640,4 +642,35 @@ fn mouse_reorder_moves_unpinned_tab() {
         Some(&pinned),
     ));
     assert_eq!(labels, ["A", "C", "D", "B"]);
+}
+
+#[test]
+fn reorder_drag_highlights_source_tab_with_indexed_46() {
+    let nav = TabNav::new(&["A", "B", "C"], 0)
+        .reorder_policy(TabReorderPolicy::NonePinned)
+        .mouse_reorder(true);
+    let area = Rect::new(0, 0, 30, 3);
+    let rects = nav.tab_rects(area);
+    let mut buf = Buffer::empty(area);
+    let mut state = TabNavState::new(0);
+    state.reorder_drag = Some(TabReorderDrag {
+        source: 1,
+        hover: 1,
+    });
+    StatefulWidget::render(nav, area, &mut buf, &mut state);
+    let tab = rects[1];
+    let mut found = false;
+    for y in tab.y..tab.bottom() {
+        for x in tab.x..tab.right() {
+            if buf[(x, y)].symbol() == "B" {
+                assert_eq!(buf[(x, y)].fg, Color::Indexed(46));
+                found = true;
+                break;
+            }
+        }
+        if found {
+            break;
+        }
+    }
+    assert!(found, "expected label B in dragged tab rect");
 }
