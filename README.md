@@ -61,7 +61,8 @@ This release does not contain any highlighted features, [click here](https://git
 - [`StatefulWidget`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) with [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) and [`TabAxis`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) navigation helpers
 - Mouse wheel tab switching over the strip via [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) (enabled by default)
 - Mouse click tab selection via [`TabNavState::handle_mouse_click`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_click) (enabled by default)
-- Optional drag reorder via [`TabReorderPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabReorderPolicy.html) and mouse handlers; dragged tab highlighted in **indexed fg 46** by default
+- Optional drag reorder via [`TabReorderPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabReorderPolicy.html) and mouse handlers; dragged tab highlighted in **indexed fg 46** after drag starts (not on click alone)
+- Selection border flash (two pulses, **indexed fg 46** by default) when the active tab changes — borders only, not the label
 - Depends on `ratatui-core` only — no terminal backend required in library code
 
 ## Installation
@@ -218,7 +219,9 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `reorder_policy()` | `AllPinned` | `NonePinned` / `SomePinned` drag reorder — see [Tab reordering](#tab-reordering) |
 | `tab_pinned()` | — | Per-tab pin flags when policy is `SomePinned` |
 | `mouse_reorder()` | `false` | Enable drag reorder (app forwards press/drag/release) |
-| `reorder_drag_style()` | fg **46** | Label and border style for the tab being dragged |
+| `reorder_drag_style()` | fg **46** | Label and border style while dragging (after first drag event) |
+| `selection_flash()` | `true` | Border pulse when selection changes |
+| `selection_flash_style()` | fg **46** | Border-only flash color |
 | `auto_tab_width()` / `auto_tab_height()` | — | Default size for one tab index |
 | `horizontal_strip_height()` | — | Minimum render height for horizontal layout |
 | `vertical_rail_width()` | — | Rail width for vertical layout (widest tab) |
@@ -410,7 +413,18 @@ if let Some(reorder) = state.handle_mouse_reorder_release(&nav) {
 }
 ```
 
-While [`TabNavState::reorder_drag`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#structfield.reorder_drag) is set, the tab at `source` is drawn with [`.reorder_drag_style`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.reorder_drag_style) (default **foreground indexed color 46** on label and borders).
+After the first mouse **drag** event while reordering, the tab at `source` is drawn with [`.reorder_drag_style`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.reorder_drag_style) (default **foreground indexed color 46** on label and borders). A click without movement does not show drag highlight.
+
+### Selection flash
+
+When the selected tab changes (keyboard, mouse click, wheel, or reorder remap), the new tab’s **border** pulses twice in [`.selection_flash_style`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.selection_flash_style) (default indexed **46**). Labels keep their normal active/inactive styles. Disable with `.selection_flash(false)`.
+
+```rust
+TabNav::new(&labels, selected)
+    .selection_flash_style(Style::new().fg(Color::Indexed(46))); // optional — 46 is the default
+// StatefulWidget::render(nav, area, buf, &mut state)
+// While state.selection_flash_active(), keep redrawing (~50 ms poll) so both blinks show
+```
 
 ### Crate layout
 
