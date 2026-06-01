@@ -100,6 +100,8 @@ pub struct TabNav<'a> {
     pub(crate) tab_pinned: Option<&'a [bool]>,
     pub(crate) mouse_reorder: bool,
     pub(crate) reorder_drag_style: Option<Style>,
+    pub(crate) selection_flash_style: Option<Style>,
+    pub(crate) selection_flash_enabled: bool,
 }
 
 impl<'a> TabNav<'a> {
@@ -130,6 +132,8 @@ impl<'a> TabNav<'a> {
             tab_pinned: None,
             mouse_reorder: false,
             reorder_drag_style: None,
+            selection_flash_style: None,
+            selection_flash_enabled: true,
         }
     }
 
@@ -276,6 +280,18 @@ impl<'a> TabNav<'a> {
     /// Style for the tab being dragged (label and borders). Default: foreground indexed color **46**.
     pub fn reorder_drag_style(mut self, style: Style) -> Self {
         self.reorder_drag_style = Some(style);
+        self
+    }
+
+    /// Border-only flash when selection changes. Default: foreground indexed color **46**.
+    pub fn selection_flash_style(mut self, style: Style) -> Self {
+        self.selection_flash_style = Some(style);
+        self
+    }
+
+    /// Enable or disable the selection border flash. Default: `true`.
+    pub fn selection_flash(mut self, enabled: bool) -> Self {
+        self.selection_flash_enabled = enabled;
         self
     }
 
