@@ -1,4 +1,11 @@
+<div align="center">
+
 # ratatui-comfy-tabs
+
+[![crates.io](https://img.shields.io/crates/v/ratatui-comfy-tabs?style=plastic&color=00c8ff&logo=rust&logoColor=white)](https://crates.io/crates/ratatui-comfy-tabs)   
+[![GitLab Repo](https://img.shields.io/badge/Repo-GitLab-FC6D26?style=plastic&logo=gitlab&logoColor=white)](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs)   
+[![GitHub Repo](https://img.shields.io/badge/Repo-GitHub-181717?style=plastic&logo=github&logoColor=white)](https://github.com/comfy-home/misc-RatatuiComfyTabs)
+</div>
 
 Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bordered, rounded-corner tabs with horizontal and vertical layouts, robust overflow handling, margin/padding handler, and many more...
 
@@ -235,11 +242,11 @@ Use [`TabPadding::axes`] for CSS two-value padding (`padding: 1 1` → top/botto
 
 [`TabBarEnd`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabBarEnd.html) styles the baseline end caps:
 
-| Mode | Horizontal baseline | Vertical rail |
-|------|---------------------|---------------|
-| `NoEnd` | continuous `─` | continuous `│` |
-| `Sqr` | `├` … `┐` | first tab top `┬`/`─`, bottom `└` |
-| `Rnd` | `├` … `╮` | first tab top `┬`/`─`, bottom `╰` |
+| Mode    | Horizontal baseline                                          | Vertical rail                     |
+| ---------| --------------------------------------------------------------| -----------------------------------|
+| `NoEnd` | continuous `─`                                               | continuous `│`                    |
+| `Sqr`   | `├` … `┐` (`│` … `┐` when the first visible tab is selected) | first tab top `┬`/`─`, bottom `└` |
+| `Rnd`   | `├` … `╮` (`│` … `╮` when the first visible tab is selected) | first tab top `┬`/`─`, bottom `╰` |
 
 ```rust
 use ratatui_comfy_tabs::{TabNav, TabBarEnd};

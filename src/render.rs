@@ -123,11 +123,17 @@ fn render_horizontal(
 
     draw_horizontal_overflow_affordances(&viewport, bot_y, bs, buf);
 
+    let first_visible_selected = viewport
+        .entries
+        .first()
+        .is_some_and(|entry| entry.index == selected);
+
     apply_horizontal_tab_bar_end(
         content_left,
         content_right,
         bot_y,
         effective_tab_bar_end(nav),
+        first_visible_selected,
         bs,
         buf,
     );
@@ -294,6 +300,7 @@ fn apply_horizontal_tab_bar_end(
     end: u16,
     y: u16,
     end_style: TabBarEnd,
+    first_visible_selected: bool,
     style: Style,
     buf: &mut Buffer,
 ) {
@@ -301,10 +308,15 @@ fn apply_horizontal_tab_bar_end(
         return;
     }
 
-    let (left_cap, right_cap) = match end_style {
+    let (left_inactive, right_cap) = match end_style {
         TabBarEnd::NoEnd => return,
         TabBarEnd::Sqr => ("├", "┐"),
         TabBarEnd::Rnd => ("├", "╮"),
+    };
+    let left_cap = if first_visible_selected {
+        "│"
+    } else {
+        left_inactive
     };
 
     buf[(start, y)].set_symbol(left_cap).set_style(style);
