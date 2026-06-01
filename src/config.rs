@@ -51,9 +51,11 @@ pub enum TabBarEnd {
     /// Continuous baseline with no corner caps.
     #[default]
     NoEnd,
-    /// Square caps: horizontal `├`/`┐`; vertical top junction `┬`/`─` and bottom `└`.
+    /// Square caps: horizontal `├`/`┐` (or `│`/`┐` when the first visible tab is selected);
+    /// vertical top junction `┬`/`─` and bottom `└`.
     Sqr,
-    /// Rounded caps: horizontal `├`/`╮`; vertical top junction `┬`/`─` and bottom `╰`.
+    /// Rounded caps: horizontal `├`/`╮` (or `│`/`╮` when the first visible tab is selected);
+    /// vertical top junction `┬`/`─` and bottom `╰`.
     Rnd,
 }
 
