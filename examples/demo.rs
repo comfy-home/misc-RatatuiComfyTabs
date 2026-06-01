@@ -287,7 +287,7 @@ impl App {
                         ));
                     }
 
-                    KeyCode::Char('H') => {
+                    KeyCode::Char('f') | KeyCode::Char('F') => {
                         self.tab_state.selection_flash_enabled =
                             !self.tab_state.selection_flash_enabled;
                         if !self.tab_state.selection_flash_enabled {
@@ -899,7 +899,7 @@ impl App {
                 dim(")"),
             ],
             vec![
-                key("H"),
+                key("F"),
                 dim(" flash ("),
                 Span::styled(
                     if self.tab_state.selection_flash_enabled {
