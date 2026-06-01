@@ -9,6 +9,7 @@ mod config;
 mod label;
 mod layout;
 mod nav;
+mod reorder;
 mod render;
 mod state;
 
@@ -17,11 +18,12 @@ mod tests;
 
 pub use config::{
     OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabMargin, TabOrientation, TabPadding,
-    TabWheelDirection,
+    TabReorderPolicy, TabWheelDirection,
 };
 pub use label::vertical_label;
 pub use nav::TabNav;
-pub use state::TabNavState;
+pub use reorder::{TabReorder, remap_selected_index, try_reorder};
+pub use state::{TabNavState, TabReorderDrag};
 
 /// Unified border-set names for [`TabNav::border_set`].
 ///
