@@ -11,12 +11,13 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 
 ![demo](assets/demo.gif)
 
-<details><summary>👀 What's new in v0.3.3 ...</summary>
+<details><summary>👀 What's new in v0.3.4 ...</summary>
 
-### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
+This release does not contain any highlighted features, [click here](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.3.4) to see detailed changes.
 
-<sup>💬 Intro:</sup>  
-<sup>_v0.3.3 is the very first public release of ratatui-comfy-tabs. Here's what it brings..._</sup>  
+<details><summary>👀 See previous changes...</summary>
+<br>
+<details><summary>v0-3-3 ...</summary>
 
 #### **1. &nbsp;&nbsp;&nbsp;Vertical tab rails — `TabOrientation::Vertical`, multi-line labels, and `vertical_label()` for stacked single-character rows; active tab opens toward content on the right.**
 #### **2. &nbsp;&nbsp;&nbsp;Overflow that scales — `OverflowPolicy::Truncate` (default) or `Scroll` with `‹` / `›` / `…` affordances; `TabNavState::scroll_offset` drives a sliding window when tabs do not fit.**
@@ -29,15 +30,18 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 
 <sub>...  🎉 Enjoy!</sub>
 
-<br><br>
-
+<br>
+</details>
+</details>
+<br>
 
 ---
-<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.3.3)</sup>
+<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.3.4)</sup>
 
 ---
 
 </details>
+
 
 
 
