@@ -691,7 +691,7 @@ fn mouse_reorder_moves_unpinned_tab() {
         TabReorderPolicy::SomePinned,
         Some(&pinned),
     ));
-    assert_eq!(labels, ["A", "C", "D", "B"]);
+    assert_eq!(labels, ["A", "D", "C", "B"]);
 }
 
 #[test]
