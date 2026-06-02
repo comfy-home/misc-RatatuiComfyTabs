@@ -9,8 +9,8 @@ mod config;
 mod label;
 mod layout;
 mod nav;
-mod reorder;
 mod render;
+mod reorder;
 mod state;
 
 #[cfg(test)]
@@ -23,9 +23,7 @@ pub use config::{
 pub use label::vertical_label;
 pub use nav::TabNav;
 pub use reorder::{TabReorder, remap_selected_index, try_reorder};
-pub use state::{
-    TabNavState, TabReorderDrag, SELECTION_FLASH_SEGMENT, SELECTION_FLASH_TOTAL,
-};
+pub use state::{SELECTION_FLASH_SEGMENT, SELECTION_FLASH_TOTAL, TabNavState, TabReorderDrag};
 
 /// Unified border-set names for [`TabNav::border_set`].
 ///
