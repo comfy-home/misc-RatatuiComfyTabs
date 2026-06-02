@@ -40,7 +40,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CRATE_NAME='ratatui-comfy-tabs'
 
 # Git remote to push to
-GIT_REMOTE='gitlab'
+GIT_REMOTE='gitLAB'
 
 # Branch that holds release commits (used for the push)
 GIT_BRANCH='main'
