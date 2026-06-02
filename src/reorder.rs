@@ -17,11 +17,7 @@ pub struct TabReorder {
 }
 
 /// Whether the tab at `index` may be dragged.
-pub fn can_drag_index(
-    index: usize,
-    policy: TabReorderPolicy,
-    tab_pinned: Option<&[bool]>,
-) -> bool {
+pub fn can_drag_index(index: usize, policy: TabReorderPolicy, tab_pinned: Option<&[bool]>) -> bool {
     match policy {
         TabReorderPolicy::AllPinned => false,
         TabReorderPolicy::NonePinned => true,
