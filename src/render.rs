@@ -62,12 +62,24 @@ fn render_tab_nav(
     }
 
     match nav.orientation {
-        TabOrientation::Horizontal => {
-            render_horizontal(nav, area, buf, selected, scroll_offset, reorder_drag, nav_state)
-        }
-        TabOrientation::Vertical => {
-            render_vertical(nav, area, buf, selected, scroll_offset, reorder_drag, nav_state)
-        }
+        TabOrientation::Horizontal => render_horizontal(
+            nav,
+            area,
+            buf,
+            selected,
+            scroll_offset,
+            reorder_drag,
+            nav_state,
+        ),
+        TabOrientation::Vertical => render_vertical(
+            nav,
+            area,
+            buf,
+            selected,
+            scroll_offset,
+            reorder_drag,
+            nav_state,
+        ),
     }
 }
 
@@ -105,8 +117,8 @@ fn render_horizontal(
         let label = nav.tabs[entry.index];
         let active = entry.index == selected;
         let dragging = is_reorder_drag_source(entry.index, reorder_drag);
-        let selection_flash = nav_state
-            .is_some_and(|state| state.selection_flash_border_on(entry.index));
+        let selection_flash =
+            nav_state.is_some_and(|state| state.selection_flash_border_on(entry.index));
         let left_x = entry.offset;
         let right_x = entry.offset + entry.size - 1;
         let text_style = tab_text_style(nav, active, dragging);
@@ -206,8 +218,8 @@ fn render_vertical(
         }
         let active = entry.index == selected;
         let dragging = is_reorder_drag_source(entry.index, reorder_drag);
-        let selection_flash = nav_state
-            .is_some_and(|state| state.selection_flash_border_on(entry.index));
+        let selection_flash =
+            nav_state.is_some_and(|state| state.selection_flash_border_on(entry.index));
         let top_y = entry.offset;
         let bot_y = entry.offset + entry.size - 1;
         let text_style = tab_text_style(nav, active, dragging);
@@ -302,7 +314,7 @@ fn is_reorder_drag_source(
     reorder_drag.is_some_and(|drag| drag.armed && drag.source == tab_index)
 }
 
-/// Default drag highlight: ANSI indexed foreground **46** (bright green).
+/// Default drag highlight: ANSI indexed foreground **46**.
 pub(crate) fn default_reorder_drag_style() -> Style {
     Style::new().fg(Color::Indexed(46))
 }
@@ -322,12 +334,7 @@ fn effective_selection_flash_style(nav: &TabNav<'_>) -> Style {
         .unwrap_or_else(default_selection_flash_style)
 }
 
-fn tab_border_style(
-    nav: &TabNav<'_>,
-    base: Style,
-    dragging: bool,
-    selection_flash: bool,
-) -> Style {
+fn tab_border_style(nav: &TabNav<'_>, base: Style, dragging: bool, selection_flash: bool) -> Style {
     if dragging {
         let drag = effective_reorder_drag_style(nav);
         if let Some(fg) = drag.fg {
