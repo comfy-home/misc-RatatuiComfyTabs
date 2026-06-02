@@ -50,13 +50,13 @@ This release does not contain any highlighted features, [click here](https://git
 Introduced in <code>v0.4.4</code> (GIF) :
 </div>
 
-![demo](assets/demo.gif)
+![demo](assets/demo-0-4.gif)
 
 <div align="center">
 Introduced in <code>v0.3.4</code> (GIF) :
 </div>
 
-![demo](assets/demo.gif)
+![demo](assets/demo-0-3.gif)
 
 ---
 ---
