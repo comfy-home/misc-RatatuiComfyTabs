@@ -9,12 +9,15 @@ use ratatui_core::layout::{Position, Rect};
 use ratatui_core::style::Style;
 use ratatui_core::symbols;
 
-use crate::config::{OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding};
-use crate::layout::{
-    auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
-    effective_padding, horizontal_strip_height, vertical_rail_width,
+use crate::DEFAULT_INDICATOR;
+use crate::config::{
+    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
 };
-use crate::{DEFAULT_INDICATOR, TAB_BORDER};
+use crate::layout::{
+    auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_padding,
+    horizontal_strip_height, tab_entry_rect, vertical_rail_width,
+};
+use crate::reorder::can_drag_index;
 
 /// Tab navigation rendered as individually bordered boxes.
 ///
@@ -93,6 +96,12 @@ pub struct TabNav<'a> {
     pub(crate) overflow_affordance: bool,
     pub(crate) mouse_wheel: bool,
     pub(crate) mouse_click: bool,
+    pub(crate) reorder_policy: TabReorderPolicy,
+    pub(crate) tab_pinned: Option<&'a [bool]>,
+    pub(crate) mouse_reorder: bool,
+    pub(crate) reorder_drag_style: Option<Style>,
+    pub(crate) selection_flash_style: Option<Style>,
+    pub(crate) selection_flash_enabled: bool,
 }
 
 impl<'a> TabNav<'a> {
@@ -119,6 +128,12 @@ impl<'a> TabNav<'a> {
             overflow_affordance: true,
             mouse_wheel: true,
             mouse_click: true,
+            reorder_policy: TabReorderPolicy::default(),
+            tab_pinned: None,
+            mouse_reorder: false,
+            reorder_drag_style: None,
+            selection_flash_style: None,
+            selection_flash_enabled: true,
         }
     }
 
@@ -244,6 +259,57 @@ impl<'a> TabNav<'a> {
         self.mouse_click
     }
 
+    /// Tab reorder policy. Default: [`TabReorderPolicy::AllPinned`] (no drag reorder).
+    pub fn reorder_policy(mut self, policy: TabReorderPolicy) -> Self {
+        self.reorder_policy = policy;
+        self
+    }
+
+    /// Per-tab pin flags for [`TabReorderPolicy::SomePinned`] (`true` = fixed slot).
+    pub fn tab_pinned(mut self, pinned: &'a [bool]) -> Self {
+        self.tab_pinned = Some(pinned);
+        self
+    }
+
+    /// Enable mouse drag-and-drop reordering (requires a non-[`TabReorderPolicy::AllPinned`] policy).
+    pub fn mouse_reorder(mut self, enabled: bool) -> Self {
+        self.mouse_reorder = enabled;
+        self
+    }
+
+    /// Style for the tab being dragged (label and borders). Default: foreground indexed color **46**.
+    pub fn reorder_drag_style(mut self, style: Style) -> Self {
+        self.reorder_drag_style = Some(style);
+        self
+    }
+
+    /// Border-only flash when selection changes. Default: foreground indexed color **46**.
+    pub fn selection_flash_style(mut self, style: Style) -> Self {
+        self.selection_flash_style = Some(style);
+        self
+    }
+
+    /// Enable or disable the selection border flash. Default: `true`.
+    pub fn selection_flash(mut self, enabled: bool) -> Self {
+        self.selection_flash_enabled = enabled;
+        self
+    }
+
+    /// Active reorder policy for this widget.
+    pub const fn reorder_policy_value(&self) -> TabReorderPolicy {
+        self.reorder_policy
+    }
+
+    /// Whether drag reordering is enabled (policy + [`mouse_reorder`](Self::mouse_reorder)).
+    pub fn reorder_enabled(&self) -> bool {
+        self.mouse_reorder && self.reorder_policy != TabReorderPolicy::AllPinned
+    }
+
+    /// Whether the tab at `index` may be dragged.
+    pub fn can_drag_tab(&self, index: usize) -> bool {
+        can_drag_index(index, self.reorder_policy, self.tab_pinned)
+    }
+
     /// Auto-computed width for tab `index` using the current padding (ignores [`tab_widths`]).
     pub fn auto_tab_width(&self, index: usize) -> Option<u16> {
         let label = self.tabs.get(index)?;
@@ -274,45 +340,11 @@ impl<'a> TabNav<'a> {
             return Vec::new();
         }
 
-        let margin = effective_margin(self);
-        let pad = effective_padding(self);
-
-        match self.orientation {
-            TabOrientation::Horizontal => {
-                let strip_height = horizontal_strip_height(self);
-                if area.height < strip_height || area.width <= margin.start + margin.end {
-                    return Vec::new();
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .map(|entry| Rect {
-                        x: entry.offset,
-                        y: area.y,
-                        width: entry.size,
-                        height: strip_height,
-                    })
-                    .collect()
-            }
-            TabOrientation::Vertical => {
-                let rail_width = vertical_rail_width(self).min(area.width);
-                if rail_width < TAB_BORDER * 2 + pad.left + pad.right
-                    || area.height <= margin.start + margin.end
-                {
-                    return Vec::new();
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .map(|entry| Rect {
-                        x: area.x,
-                        y: entry.offset,
-                        width: rail_width,
-                        height: entry.size,
-                    })
-                    .collect()
-            }
-        }
+        compute_viewport(self, area, scroll_offset)
+            .entries
+            .iter()
+            .filter_map(|entry| tab_entry_rect(self, area, entry))
+            .collect()
     }
 
     /// Minimum height for a horizontal tab strip with the current padding.
@@ -361,50 +393,14 @@ impl<'a> TabNav<'a> {
         }
 
         let position = Position::new(mouse_column, mouse_row);
-        let margin = effective_margin(self);
-        let pad = effective_padding(self);
-
-        match self.orientation {
-            TabOrientation::Horizontal => {
-                let strip_height = horizontal_strip_height(self);
-                if area.height < strip_height || area.width <= margin.start + margin.end {
-                    return None;
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .find(|entry| {
-                        Rect {
-                            x: entry.offset,
-                            y: area.y,
-                            width: entry.size,
-                            height: strip_height,
-                        }
-                        .contains(position)
-                    })
-                    .map(|entry| entry.index)
-            }
-            TabOrientation::Vertical => {
-                let rail_width = vertical_rail_width(self).min(area.width);
-                if rail_width < TAB_BORDER * 2 + pad.left + pad.right
-                    || area.height <= margin.start + margin.end
-                {
-                    return None;
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .find(|entry| {
-                        Rect {
-                            x: area.x,
-                            y: entry.offset,
-                            width: rail_width,
-                            height: entry.size,
-                        }
-                        .contains(position)
-                    })
-                    .map(|entry| entry.index)
-            }
-        }
+        compute_viewport(self, area, scroll_offset)
+            .entries
+            .iter()
+            .rev()
+            .find_map(|entry| {
+                tab_entry_rect(self, area, entry)
+                    .filter(|rect| rect.contains(position))
+                    .map(|_| entry.index)
+            })
     }
 }

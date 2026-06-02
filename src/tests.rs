@@ -7,16 +7,20 @@
 
 use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
+use ratatui_core::style::{Color, Style};
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::config::{
-    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabWheelDirection,
+    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
+    TabWheelDirection,
 };
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
     effective_padding,
 };
 use crate::nav::TabNav;
-use crate::state::TabNavState;
+use crate::reorder::try_reorder;
+use crate::state::{TabNavState, TabReorderDrag};
 use crate::{DEFAULT_INDICATOR, vertical_label};
 
 fn draw(nav: TabNav<'_>, area: Rect, buf: &mut Buffer) {
@@ -604,8 +608,217 @@ fn mouse_click_ignored_when_disabled() {
 }
 
 #[test]
+fn vertical_tab_index_at_matches_each_visible_tab() {
+    let labels: Vec<String> = ["One", "Two", "Three", "Four"]
+        .iter()
+        .map(|name| vertical_label(name))
+        .collect();
+    let tabs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .reorder_policy(TabReorderPolicy::NonePinned)
+        .mouse_reorder(true);
+    let width = nav.vertical_rail_width();
+    let total_height: u16 = (0..tabs.len())
+        .map(|i| nav.auto_tab_height(i).unwrap())
+        .sum();
+    let area = Rect::new(5, 10, width, total_height);
+    let rects = nav.tab_rects(area);
+    assert_eq!(rects.len(), tabs.len());
+
+    for (index, rect) in rects.iter().enumerate() {
+        let row = rect.y + rect.height / 2;
+        let col = rect.x + 1;
+        assert_eq!(
+            nav.tab_index_at(area, 0, col, row),
+            Some(index),
+            "tab {index} at ({col}, {row})"
+        );
+    }
+}
+
+#[test]
+fn vertical_tab_index_at_respects_scroll_offset() {
+    let labels: Vec<String> = (0..6).map(|i| vertical_label(&format!("T{i}"))).collect();
+    let tabs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .overflow(OverflowPolicy::Scroll);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width, 12);
+    let scroll_offset = 2usize;
+    let rects = nav.tab_rects_with_scroll(area, scroll_offset);
+    assert!(!rects.is_empty());
+    let first = rects[0];
+    let row = first.y + first.height / 2;
+    assert_eq!(
+        nav.tab_index_at(area, scroll_offset, first.x + 1, row),
+        Some(scroll_offset)
+    );
+}
+
+#[test]
 fn tab_index_at_returns_none_outside_tabs() {
     let nav = TabNav::new(&["A", "B"], 0);
     let area = Rect::new(0, 0, 20, 3);
     assert!(nav.tab_index_at(area, 0, 50, 1).is_none());
+}
+
+#[test]
+fn mouse_reorder_moves_unpinned_tab() {
+    let mut labels = vec!["A", "B", "C", "D"];
+    let pinned = [true, false, true, false];
+    let nav = TabNav::new(&labels, 0)
+        .reorder_policy(TabReorderPolicy::SomePinned)
+        .tab_pinned(&pinned)
+        .mouse_reorder(true);
+    let area = Rect::new(0, 0, 48, 3);
+    let rects = nav.tab_rects(area);
+    let mut state = TabNavState::new(0);
+    let from_col = rects[1].x + 1;
+    let to_col = rects[3].x + 1;
+    assert!(state.handle_mouse_reorder_press(&nav, area, from_col, 1));
+    state.handle_mouse_reorder_drag(&nav, area, to_col, 1);
+    let reorder = state
+        .handle_mouse_reorder_release(&nav)
+        .expect("expected reorder");
+    assert_eq!(reorder.from, 1);
+    assert_eq!(reorder.to, 3);
+    assert!(try_reorder(
+        &mut labels,
+        reorder.from,
+        reorder.to,
+        TabReorderPolicy::SomePinned,
+        Some(&pinned),
+    ));
+    assert_eq!(labels, ["A", "D", "C", "B"]);
+}
+
+#[test]
+fn reorder_drag_highlights_source_tab_with_indexed_46() {
+    let nav = TabNav::new(&["A", "B", "C"], 0)
+        .reorder_policy(TabReorderPolicy::NonePinned)
+        .mouse_reorder(true);
+    let area = Rect::new(0, 0, 30, 3);
+    let rects = nav.tab_rects(area);
+    let mut buf = Buffer::empty(area);
+    let mut state = TabNavState::new(0);
+    state.reorder_drag = Some(TabReorderDrag {
+        source: 1,
+        hover: 1,
+        armed: true,
+    });
+    StatefulWidget::render(nav, area, &mut buf, &mut state);
+    let tab = rects[1];
+    let mut found = false;
+    for y in tab.y..tab.bottom() {
+        for x in tab.x..tab.right() {
+            if buf[(x, y)].symbol() == "B" {
+                assert_eq!(buf[(x, y)].fg, Color::Indexed(46));
+                found = true;
+                break;
+            }
+        }
+        if found {
+            break;
+        }
+    }
+    assert!(found, "expected label B in dragged tab rect");
+}
+
+#[test]
+fn reorder_press_without_armed_does_not_highlight() {
+    let nav = TabNav::new(&["A", "B", "C"], 0)
+        .reorder_policy(TabReorderPolicy::NonePinned)
+        .mouse_reorder(true)
+        .border_style(Style::new().fg(Color::White));
+    let area = Rect::new(0, 0, 30, 3);
+    let rects = nav.tab_rects(area);
+    let mut buf = Buffer::empty(area);
+    let mut state = TabNavState::new(0);
+    state.reorder_drag = Some(TabReorderDrag {
+        source: 1,
+        hover: 1,
+        armed: false,
+    });
+    StatefulWidget::render(nav, area, &mut buf, &mut state);
+    let tab = rects[1];
+    let corner_fg = buf[(tab.x, tab.y)].fg;
+    assert_eq!(
+        corner_fg,
+        Color::White,
+        "unarmed drag must not apply indexed-46 border"
+    );
+    assert_ne!(corner_fg, Color::Indexed(46));
+}
+
+#[test]
+fn selection_flash_highlights_border_not_label() {
+    let nav = TabNav::new(&["A", "B"], 0)
+        .border_style(Style::new().fg(Color::White))
+        .style(Style::new().fg(Color::White));
+    let area = Rect::new(0, 0, 20, 3);
+    let rects = nav.tab_rects(area);
+    let mut buf = Buffer::empty(area);
+    let mut state = TabNavState::new(0);
+    state.flash_selection(1);
+    StatefulWidget::render(nav, area, &mut buf, &mut state);
+    let tab = rects[1];
+    let mut border_46 = false;
+    let mut label_46 = false;
+    for y in tab.y..tab.bottom() {
+        for x in tab.x..tab.right() {
+            let cell = &buf[(x, y)];
+            if cell.fg != Color::Indexed(46) {
+                continue;
+            }
+            if cell.symbol() == "B" {
+                label_46 = true;
+            } else {
+                border_46 = true;
+            }
+        }
+    }
+    assert!(border_46, "expected border fg 46 during flash");
+    assert!(!label_46, "label must not use flash color");
+}
+
+#[test]
+fn vertical_tab_index_at_matches_stacked_label_rects() {
+    let overview = vertical_label("Overview");
+    let network = vertical_label("Network");
+    let tabs = [overview.as_str(), network.as_str()];
+    let nav = TabNav::new(&tabs, 0).orientation(TabOrientation::Vertical);
+    let area = Rect::new(0, 0, 8, 40);
+    let rects = nav.tab_rects(area);
+    assert_eq!(rects.len(), 2);
+    for (expected_index, rect) in rects.into_iter().enumerate() {
+        let row = rect.y + rect.height / 2;
+        let col = rect.x + rect.width / 2;
+        assert_eq!(
+            nav.tab_index_at(area, 0, col, row),
+            Some(expected_index),
+            "pointer in tab {expected_index} rect should hit that tab"
+        );
+    }
+}
+
+#[test]
+fn vertical_tab_index_at_differs_when_label_geometry_differs() {
+    let stacked = vertical_label("Network");
+    let flat = "Network";
+    let stacked_tabs = [stacked.as_str()];
+    let flat_tabs = [flat];
+    let stacked_nav = TabNav::new(&stacked_tabs, 0).orientation(TabOrientation::Vertical);
+    let flat_nav = TabNav::new(&flat_tabs, 0).orientation(TabOrientation::Vertical);
+    let area = Rect::new(0, 0, 8, 40);
+    let stacked_rect = stacked_nav.tab_rects(area)[0];
+    let row = stacked_rect.y + stacked_rect.height.saturating_sub(1);
+    let col = stacked_rect.x + 1;
+    assert_eq!(stacked_nav.tab_index_at(area, 0, col, row), Some(0));
+    assert_eq!(
+        flat_nav.tab_index_at(area, 0, col, row),
+        None,
+        "same pointer must not hit a shorter flat label tab"
+    );
 }

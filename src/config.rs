@@ -45,6 +45,18 @@ impl TabMargin {
     }
 }
 
+/// Whether tabs in the strip may be reordered by drag-and-drop.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TabReorderPolicy {
+    /// Fixed order (default). Matches legacy behaviour — no drag reordering.
+    #[default]
+    AllPinned,
+    /// Every tab may be dragged to another slot.
+    NonePinned,
+    /// Per-tab [`TabNav::tab_pinned`] mask: `true` tabs stay fixed; others may move.
+    SomePinned,
+}
+
 /// End-cap style for the tab strip baseline.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TabBarEnd {
