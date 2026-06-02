@@ -9,15 +9,15 @@ use ratatui_core::layout::{Position, Rect};
 use ratatui_core::style::Style;
 use ratatui_core::symbols;
 
+use crate::DEFAULT_INDICATOR;
 use crate::config::{
     OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
 };
-use crate::reorder::can_drag_index;
 use crate::layout::{
-    auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
-    effective_padding, horizontal_strip_height, vertical_rail_width,
+    auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_padding,
+    horizontal_strip_height, tab_entry_rect, vertical_rail_width,
 };
-use crate::{DEFAULT_INDICATOR, TAB_BORDER};
+use crate::reorder::can_drag_index;
 
 /// Tab navigation rendered as individually bordered boxes.
 ///
@@ -340,45 +340,11 @@ impl<'a> TabNav<'a> {
             return Vec::new();
         }
 
-        let margin = effective_margin(self);
-        let pad = effective_padding(self);
-
-        match self.orientation {
-            TabOrientation::Horizontal => {
-                let strip_height = horizontal_strip_height(self);
-                if area.height < strip_height || area.width <= margin.start + margin.end {
-                    return Vec::new();
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .map(|entry| Rect {
-                        x: entry.offset,
-                        y: area.y,
-                        width: entry.size,
-                        height: strip_height,
-                    })
-                    .collect()
-            }
-            TabOrientation::Vertical => {
-                let rail_width = vertical_rail_width(self).min(area.width);
-                if rail_width < TAB_BORDER * 2 + pad.left + pad.right
-                    || area.height <= margin.start + margin.end
-                {
-                    return Vec::new();
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .map(|entry| Rect {
-                        x: area.x,
-                        y: entry.offset,
-                        width: rail_width,
-                        height: entry.size,
-                    })
-                    .collect()
-            }
-        }
+        compute_viewport(self, area, scroll_offset)
+            .entries
+            .iter()
+            .filter_map(|entry| tab_entry_rect(self, area, entry))
+            .collect()
     }
 
     /// Minimum height for a horizontal tab strip with the current padding.
@@ -427,50 +393,14 @@ impl<'a> TabNav<'a> {
         }
 
         let position = Position::new(mouse_column, mouse_row);
-        let margin = effective_margin(self);
-        let pad = effective_padding(self);
-
-        match self.orientation {
-            TabOrientation::Horizontal => {
-                let strip_height = horizontal_strip_height(self);
-                if area.height < strip_height || area.width <= margin.start + margin.end {
-                    return None;
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .find(|entry| {
-                        Rect {
-                            x: entry.offset,
-                            y: area.y,
-                            width: entry.size,
-                            height: strip_height,
-                        }
-                        .contains(position)
-                    })
-                    .map(|entry| entry.index)
-            }
-            TabOrientation::Vertical => {
-                let rail_width = vertical_rail_width(self).min(area.width);
-                if rail_width < TAB_BORDER * 2 + pad.left + pad.right
-                    || area.height <= margin.start + margin.end
-                {
-                    return None;
-                }
-                compute_viewport(self, area, scroll_offset)
-                    .entries
-                    .into_iter()
-                    .find(|entry| {
-                        Rect {
-                            x: area.x,
-                            y: entry.offset,
-                            width: rail_width,
-                            height: entry.size,
-                        }
-                        .contains(position)
-                    })
-                    .map(|entry| entry.index)
-            }
-        }
+        compute_viewport(self, area, scroll_offset)
+            .entries
+            .iter()
+            .rev()
+            .find_map(|entry| {
+                tab_entry_rect(self, area, entry)
+                    .filter(|rect| rect.contains(position))
+                    .map(|_| entry.index)
+            })
     }
 }

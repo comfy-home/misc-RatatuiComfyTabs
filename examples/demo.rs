@@ -197,6 +197,8 @@ impl App {
                             DemoMode::Horizontal => DemoMode::Vertical,
                             DemoMode::Vertical => DemoMode::Horizontal,
                         };
+                        self.tab_state.clear_scroll();
+                        self.tab_state.cancel_reorder_drag();
                         self.record_command(format!("self.mode = DemoMode::{:?};", self.mode));
                     }
 
@@ -309,14 +311,16 @@ impl App {
                         self.mouse_reorder = self.reorder_policy != TabReorderPolicy::AllPinned;
                         self.tab_state.cancel_reorder_drag();
                         self.record_command(format!(
-                            ".reorder_policy(TabReorderPolicy::{:?}).mouse_reorder({});\n// SomePinned pins Overview (first tab id)",
+                            ".reorder_policy(TabReorderPolicy::{:?}).mouse_reorder({});\n// SomePinned pins Overview and Network (tab 1 and 3)\n done here in DEMO app via `pins` ==> `pins[display] = tab_index == 0 || tab_index == 2;`",
                             self.reorder_policy, self.mouse_reorder
                         ));
                     }
 
                     KeyCode::BackTab => {
-                        self.tab_state
-                            .select_direction_wrapping(TabDirection::Previous, self.tab_order.len());
+                        self.tab_state.select_direction_wrapping(
+                            TabDirection::Previous,
+                            self.tab_order.len(),
+                        );
                         self.record_command(format!(
                             "tab_state.select_direction_wrapping(TabDirection::Previous, {});\n// selected = {} ({})",
                             self.tab_order.len(),
@@ -385,7 +389,7 @@ impl App {
                         ));
                     }
                     KeyCode::Char(']') => {
-                        let labels_owned = self.ordered_labels_owned();
+                        let labels_owned = self.tab_labels_owned_for_nav();
                         let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
                         let mut pin_buf = Vec::new();
                         let nav = self.prepare_tab_nav(&labels, &mut pin_buf);
@@ -456,11 +460,27 @@ impl App {
             .collect()
     }
 
+    /// Tab labels for [`TabNav`] — must match rendering (stacked labels in vertical mode).
+    fn tab_labels_owned_for_nav(&self) -> Vec<String> {
+        match self.mode {
+            DemoMode::Horizontal => self
+                .tab_order
+                .iter()
+                .map(|&index| TABS[index].to_string())
+                .collect(),
+            DemoMode::Vertical => self
+                .tab_order
+                .iter()
+                .map(|&index| self.vertical_labels[index].clone())
+                .collect(),
+        }
+    }
+
     fn compute_tab_pins(&self, len: usize) -> Vec<bool> {
         let mut pins = vec![false; len];
         if self.reorder_policy == TabReorderPolicy::SomePinned {
             for (display, &tab_index) in self.tab_order.iter().enumerate().take(len) {
-                pins[display] = tab_index == 0;
+                pins[display] = tab_index == 0 || tab_index == 2;
             }
         }
         pins
@@ -487,8 +507,12 @@ impl App {
             self.reorder_policy,
             pin_slice,
         ) {
-            self.tab_state.selected =
-                ratatui_comfy_tabs::remap_selected_index(self.tab_state.selected, from, to);
+            self.tab_state.selected = ratatui_comfy_tabs::remap_selected_index_with_pins(
+                self.tab_state.selected,
+                from,
+                to,
+                pin_slice,
+            );
         }
     }
 
@@ -496,7 +520,7 @@ impl App {
         if !self.mouse_reorder {
             return false;
         }
-        let labels_owned = self.ordered_labels_owned();
+        let labels_owned = self.tab_labels_owned_for_nav();
         let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
         let mut pin_buf = Vec::new();
         let nav = self.prepare_tab_nav(&labels, &mut pin_buf);
@@ -520,7 +544,7 @@ impl App {
             return;
         };
         let from = drag.source;
-        let labels_owned = self.ordered_labels_owned();
+        let labels_owned = self.tab_labels_owned_for_nav();
         let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
         let mut pin_buf = Vec::new();
         let nav = self.prepare_tab_nav(&labels, &mut pin_buf);
@@ -552,7 +576,7 @@ impl App {
         if !self.tab_state.is_reorder_dragging() {
             return;
         }
-        let labels_owned = self.ordered_labels_owned();
+        let labels_owned = self.tab_labels_owned_for_nav();
         let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
         let mut pin_buf = Vec::new();
         let nav = self.prepare_tab_nav(&labels, &mut pin_buf);
@@ -568,33 +592,16 @@ impl App {
     }
 
     fn handle_mouse_click(&mut self) {
-        let labels_owned = self.ordered_labels_owned();
+        let labels_owned = self.tab_labels_owned_for_nav();
         let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
         let mut pin_buf = Vec::new();
         let nav = self.prepare_tab_nav(&labels, &mut pin_buf);
-        let consumed = match self.mode {
-            DemoMode::Horizontal => self.tab_state.handle_mouse_click(
-                    &nav,
-                    self.tab_hit_area,
-                    self.last_mouse_column,
-                    self.last_mouse_row,
-                ),
-            DemoMode::Vertical => {
-                let label_refs: Vec<&str> = self
-                    .tab_order
-                    .iter()
-                    .map(|&index| self.vertical_labels[index].as_str())
-                    .collect();
-                let mut pin_buf_v = Vec::new();
-                let nav_v = self.prepare_tab_nav(&label_refs, &mut pin_buf_v);
-                self.tab_state.handle_mouse_click(
-                    &nav_v,
-                    self.tab_hit_area,
-                    self.last_mouse_column,
-                    self.last_mouse_row,
-                )
-            }
-        };
+        let consumed = self.tab_state.handle_mouse_click(
+            &nav,
+            self.tab_hit_area,
+            self.last_mouse_column,
+            self.last_mouse_row,
+        );
 
         if consumed {
             self.record_command(format!(
@@ -617,7 +624,7 @@ impl App {
 
         self.drain_matching_wheel(direction);
 
-        let labels_owned = self.ordered_labels_owned();
+        let labels_owned = self.tab_labels_owned_for_nav();
         let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
         let mut pin_buf = Vec::new();
         let nav = self.prepare_tab_nav(&labels, &mut pin_buf);
@@ -724,20 +731,12 @@ impl App {
             .unwrap_or(TABS[0])
     }
 
-    fn prepare_tab_nav<'a>(
-        &self,
-        tabs: &'a [&'a str],
-        pin_buf: &'a mut Vec<bool>,
-    ) -> TabNav<'a> {
+    fn prepare_tab_nav<'a>(&self, tabs: &'a [&'a str], pin_buf: &'a mut Vec<bool>) -> TabNav<'a> {
         let pin_opt = self.tab_pins_option(tabs.len(), pin_buf);
         self.build_tab_nav(tabs, pin_opt)
     }
 
-    fn build_tab_nav<'a>(
-        &self,
-        tabs: &'a [&'a str],
-        tab_pinned: Option<&'a [bool]>,
-    ) -> TabNav<'a> {
+    fn build_tab_nav<'a>(&self, tabs: &'a [&'a str], tab_pinned: Option<&'a [bool]>) -> TabNav<'a> {
         let bg = Color::Rgb(20, 20, 40);
         let highlight = Color::LightBlue;
         let dim = Color::DarkGray;
@@ -778,13 +777,10 @@ impl App {
     }
 
     fn vertical_rail_width(&self) -> u16 {
-        let label_refs: Vec<&str> = self
-            .tab_order
-            .iter()
-            .map(|&index| self.vertical_labels[index].as_str())
-            .collect();
+        let labels_owned = self.tab_labels_owned_for_nav();
+        let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
         let mut pin_buf = Vec::new();
-        self.prepare_tab_nav(&label_refs, &mut pin_buf)
+        self.prepare_tab_nav(&labels, &mut pin_buf)
             .vertical_rail_width()
     }
 
@@ -811,12 +807,7 @@ impl App {
         let reorder_label = self.reorder_policy_label();
 
         let nav = match self.mode {
-            DemoMode::Horizontal => vec![
-                key("←"),
-                dim("/"),
-                key("→"),
-                dim(" tabs"),
-            ],
+            DemoMode::Horizontal => vec![key("←"), dim("/"), key("→"), dim(" tabs")],
             DemoMode::Vertical => vec![
                 key("j"),
                 dim("/"),
@@ -1053,12 +1044,12 @@ impl App {
             tabs
         };
 
-        self.wheel_strip_area = tabs;
         self.tab_hit_area = tab_area;
+        self.wheel_strip_area = tab_area;
         let mut pin_buf_render = Vec::new();
         let nav = self.prepare_tab_nav(&labels, &mut pin_buf_render);
         self.tab_state
-            .ensure_selected_visible(&nav, self.wheel_strip_area);
+            .ensure_selected_visible(&nav, self.tab_hit_area);
         StatefulWidget::render(nav, tab_area, frame.buffer_mut(), &mut self.tab_state);
 
         self.render_content_pane(
@@ -1098,17 +1089,14 @@ impl App {
             tabs
         };
 
-        let label_refs: Vec<&str> = self
-            .tab_order
-            .iter()
-            .map(|&index| self.vertical_labels[index].as_str())
-            .collect();
-        self.wheel_strip_area = tabs;
         self.tab_hit_area = tab_area;
+        self.wheel_strip_area = tab_area;
+        let labels_owned = self.tab_labels_owned_for_nav();
+        let labels: Vec<&str> = labels_owned.iter().map(String::as_str).collect();
         let mut pin_buf_render = Vec::new();
-        let nav = self.prepare_tab_nav(&label_refs, &mut pin_buf_render);
+        let nav = self.prepare_tab_nav(&labels, &mut pin_buf_render);
         self.tab_state
-            .ensure_selected_visible(&nav, self.wheel_strip_area);
+            .ensure_selected_visible(&nav, self.tab_hit_area);
         StatefulWidget::render(nav, tab_area, frame.buffer_mut(), &mut self.tab_state);
 
         self.render_content_pane(

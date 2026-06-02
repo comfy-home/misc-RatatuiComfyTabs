@@ -134,6 +134,40 @@ fn flow_bounds(nav: &TabNav<'_>, area: Rect) -> Option<(u16, u16)> {
     }
 }
 
+/// Layout [`Rect`] for one visible tab (same geometry as [`TabNav::tab_rects`](crate::TabNav::tab_rects)).
+pub(crate) fn tab_entry_rect(nav: &TabNav<'_>, area: Rect, entry: &TabEntry) -> Option<Rect> {
+    let margin = effective_margin(nav);
+    let pad = effective_padding(nav);
+    match nav.orientation {
+        TabOrientation::Horizontal => {
+            let strip_height = horizontal_strip_height(nav);
+            if area.height < strip_height || area.width <= margin.start + margin.end {
+                return None;
+            }
+            Some(Rect {
+                x: entry.offset,
+                y: area.y,
+                width: entry.size,
+                height: strip_height,
+            })
+        }
+        TabOrientation::Vertical => {
+            let rail_width = vertical_rail_width(nav).min(area.width);
+            if rail_width < TAB_BORDER * 2 + pad.left + pad.right
+                || area.height <= margin.start + margin.end
+            {
+                return None;
+            }
+            Some(Rect {
+                x: area.x,
+                y: entry.offset,
+                width: rail_width,
+                height: entry.size,
+            })
+        }
+    }
+}
+
 pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usize) -> TabViewport {
     let pad = effective_padding(nav);
     let Some((flow_start, flow_end)) = flow_bounds(nav, area) else {
