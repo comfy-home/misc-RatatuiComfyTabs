@@ -102,7 +102,7 @@ impl TabNavState {
         }
         let segment_ms = SELECTION_FLASH_SEGMENT.as_millis().max(1);
         let segment = (elapsed.as_millis() / segment_ms) as u32;
-        segment % 2 == 0
+        segment.is_multiple_of(2)
     }
 
     /// Drops expired selection-flash state (called from stateful render).
@@ -335,12 +335,7 @@ impl TabNavState {
             return true;
         };
 
-        if can_drop_at(
-            drag.source,
-            hover,
-            nav.reorder_policy,
-            nav.tab_pinned,
-        ) {
+        if can_drop_at(drag.source, hover, nav.reorder_policy, nav.tab_pinned) {
             drag.hover = hover;
         }
         true
@@ -352,16 +347,12 @@ impl TabNavState {
         if drag.source == drag.hover {
             return None;
         }
-        if !can_drop_at(
-            drag.source,
-            drag.hover,
-            nav.reorder_policy,
-            nav.tab_pinned,
-        ) {
+        if !can_drop_at(drag.source, drag.hover, nav.reorder_policy, nav.tab_pinned) {
             return None;
         }
         let previous = self.selected;
-        self.selected = crate::reorder::remap_selected_index(self.selected, drag.source, drag.hover);
+        self.selected =
+            crate::reorder::remap_selected_index(self.selected, drag.source, drag.hover);
         self.notify_selection_changed(previous);
         Some(TabReorder {
             from: drag.source,
@@ -372,5 +363,10 @@ impl TabNavState {
     /// Cancels an in-progress reorder drag without applying it.
     pub fn cancel_reorder_drag(&mut self) {
         self.reorder_drag = None;
+    }
+
+    /// Resets scroll mode offset (call when the strip layout or orientation changes).
+    pub const fn clear_scroll(&mut self) {
+        self.scroll_offset = 0;
     }
 }
