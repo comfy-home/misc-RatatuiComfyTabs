@@ -12,12 +12,47 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 
 ---
 
-<details><summary>👀 What's new in v0.3.4 ...</summary>
+<details><summary>👀 What's new in v0.4.4 ...</summary>
 
-This release does not contain any highlighted features, [click here](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.3.4) to see detailed changes.
+### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
+
+<sup>💬 Intro:</sup>  
+<sup>_First of all, our apologies, developers! I forgot to exclude the demo GIF in Cargo.toml which caused the crate being over 7MB🤦 in v0.3.x... it is fixed now._</sup>  
+<sup>_Apart from that, this release brings 2 exciting features that made my hair even greyer, but they both worked out very well in the end._</sup>  
+
+#### **1. &nbsp;&nbsp;&nbsp;Selection FLASH Indication**
+- The feature is well documented + I attached a separate GIF to highlight this feature + it's in DEMO example (feel free to examine), so just a few bullet points here:
+  - R-C-Tabs now can be configured to highlight/indicate newly selected tab
+  - This is done by a quick (~600ms) blink
+  - Color is fully customizable
+
+#### **2. &nbsp;&nbsp;&nbsp;Tab REORDERING**
+- Again, the feature is well documented, and also included in the attached GIF+DEMO, to sum it up:
+  - There are 3 master configs:
+    - `NonePinned`: when selected, any tab can be moved to a new position
+    - `SomePinned`: when selected, you can assign a pin to a tab, it's on per-tab basis which allows you to force any tab to keep its position while non-pinned tabs can be freely reorganized!
+    - `AllPinned`: I did not want to introduce breaking change, so this is the default when undeclared. AllPined = non-moveable.
+  - The feature has built-in highlight for the tab that's being dragged!
+
+
+<sub>...  🎉 Enjoy!</sub>
+
+<br><br>
 
 <details><summary>👀 See previous changes...</summary>
 <br>
+<details><summary>v0-3-4 ...</summary>
+
+#### **1. &nbsp;&nbsp;&nbsp;Just a HOTFIX release.**
+- Fixes wrong border render of the first tab when this tab is selected
+- This bug affected only horizontal configuration
+- SORTED!
+
+
+<sub>...  🎉 Enjoy!</sub>
+
+<br>
+</details>
 <details><summary>v0-3-3 ...</summary>
 
 #### **1. &nbsp;&nbsp;&nbsp;Vertical tab rails — `TabOrientation::Vertical`, multi-line labels, and `vertical_label()` for stacked single-character rows; active tab opens toward content on the right.**
@@ -37,11 +72,12 @@ This release does not contain any highlighted features, [click here](https://git
 <br>
 
 ---
-<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.3.4)</sup>
+<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.4.4)</sup>
 
 ---
 
 </details>
+
 
 ---
 ## GIF Presentation
