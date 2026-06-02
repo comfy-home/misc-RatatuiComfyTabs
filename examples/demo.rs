@@ -311,7 +311,7 @@ impl App {
                         self.mouse_reorder = self.reorder_policy != TabReorderPolicy::AllPinned;
                         self.tab_state.cancel_reorder_drag();
                         self.record_command(format!(
-                            ".reorder_policy(TabReorderPolicy::{:?}).mouse_reorder({});\n// SomePinned pins Overview (first tab id)",
+                            ".reorder_policy(TabReorderPolicy::{:?}).mouse_reorder({});\n// SomePinned pins Overview and Network (tab 1 and 3)\n done here in DEMO app via `pins` ==> `pins[display] = tab_index == 0 || tab_index == 2;`",
                             self.reorder_policy, self.mouse_reorder
                         ));
                     }
@@ -480,7 +480,7 @@ impl App {
         let mut pins = vec![false; len];
         if self.reorder_policy == TabReorderPolicy::SomePinned {
             for (display, &tab_index) in self.tab_order.iter().enumerate().take(len) {
-                pins[display] = tab_index == 0;
+                pins[display] = tab_index == 0 || tab_index == 2;
             }
         }
         pins
@@ -507,8 +507,12 @@ impl App {
             self.reorder_policy,
             pin_slice,
         ) {
-            self.tab_state.selected =
-                ratatui_comfy_tabs::remap_selected_index(self.tab_state.selected, from, to);
+            self.tab_state.selected = ratatui_comfy_tabs::remap_selected_index_with_pins(
+                self.tab_state.selected,
+                from,
+                to,
+                pin_slice,
+            );
         }
     }
 
