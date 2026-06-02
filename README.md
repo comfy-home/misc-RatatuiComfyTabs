@@ -5,11 +5,12 @@
 [![crates.io](https://img.shields.io/crates/v/ratatui-comfy-tabs?style=plastic&color=00c8ff&logo=rust&logoColor=white)](https://crates.io/crates/ratatui-comfy-tabs)   
 [![GitLab Repo](https://img.shields.io/badge/Repo-GitLab-FC6D26?style=plastic&logo=gitlab&logoColor=white)](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs)   
 [![GitHub Repo](https://img.shields.io/badge/Repo-GitHub-181717?style=plastic&logo=github&logoColor=white)](https://github.com/comfy-home/misc-RatatuiComfyTabs)
-</div>
+
 
 Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bordered, rounded-corner tabs with horizontal and vertical layouts, robust overflow handling, margin/padding handler, and many more...
+</div>
 
-![demo](assets/demo.gif)
+---
 
 <details><summary>👀 What's new in v0.3.4 ...</summary>
 
@@ -42,8 +43,23 @@ This release does not contain any highlighted features, [click here](https://git
 
 </details>
 
+---
+## GIF Presentation
 
+<div align="center">
+Introduced in <code>v0.4.4</code> (GIF) :
+</div>
 
+![demo](assets/demo.gif)
+
+<div align="center">
+Introduced in <code>v0.3.4</code> (GIF) :
+</div>
+
+![demo](assets/demo.gif)
+
+---
+---
 
 ## Features
 
