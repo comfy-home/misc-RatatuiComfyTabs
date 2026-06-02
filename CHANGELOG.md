@@ -2,6 +2,147 @@
 
 Newest archived changelogs first. When multiple archived files represent the same version, only the newest archive is included here.
 
+## Changelog `v0.4.4` <sup><div align="end">🗓️ 2026-06-02</div></sup>
+
+### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
+
+<sup>💬 Intro:</sup>  
+<sup>_First of all, our apologies, developers! I forgot to exclude the demo GIF in Cargo.toml which caused the crate being over 7MB🤦 in v0.3.x... it is fixed now._</sup>  
+<sup>_Apart from that, this release brings 2 exciting features that made my hair even greyer, but they both worked out very well in the end._</sup>  
+
+#### **1. &nbsp;&nbsp;&nbsp;Selection FLASH Indication**
+- The feature is well documented + I attached a separate GIF to highlight this feature + it's in DEMO example (feel free to examine), so just a few bullet points here:
+  - R-C-Tabs now can be configured to highlight/indicate newly selected tab
+  - This is done by a quick (~600ms) blink
+  - Color is fully customizable
+
+#### **2. &nbsp;&nbsp;&nbsp;Tab REORDERING**
+- Again, the feature is well documented, and also included in the attached GIF+DEMO, to sum it up:
+  - There are 3 master configs:
+    - `NonePinned`: when selected, any tab can be moved to a new position
+    - `SomePinned`: when selected, you can assign a pin to a tab, it's on per-tab basis which allows you to force any tab to keep its position while non-pinned tabs can be freely reorganized!
+    - `AllPinned`: I did not want to introduce breaking change, so this is the default when undeclared. AllPined = non-moveable.
+  - The feature has built-in highlight for the tab that's being dragged!
+
+
+<sub>...  🎉 Enjoy!</sub>
+
+<br>
+
+### 🧩 Features
+
+* add mouse tab reordering functionality and update tab selection logic <sub><sup><sup>_9df7319_</sup></sup></sub>
+
+* introduce TabReorderPolicy enum to manage tab reordering behavior <sub><sup><sup>_9c2f63e_</sup></sup></sub>
+
+* add reorder module and expose tab reordering functions <sub><sup><sup>_2414afd_</sup></sup></sub>
+
+* enhance TabNav with reorder policy and mouse drag support <sub><sup><sup>_6fc4e36_</sup></sup></sub>
+
+* implement tab reordering logic with drag-and-drop support <sub><sup><sup>_4b49a33_</sup></sup></sub>
+
+* add mouse drag handling for tab reordering in TabNavState <sub><sup><sup>_63cc4c5_</sup></sup></sub>
+
+* add reorder_drag_style to TabNav for customizable drag appearance <sub><sup><sup>_19151f2_</sup></sup></sub>
+
+* enhance TabNav rendering to support tab reordering with visual feedback <sub><sup><sup>_36979ad_</sup></sup></sub>
+
+* implement selection flash toggle and adjust event polling timeout in App <sub><sup><sup>_22910d2_</sup></sup></sub>
+
+* expose selection flash constants in state module for improved tab navigation <sub><sup><sup>_319cfd7_</sup></sup></sub>
+
+* add selection flash style and enable toggle in TabNav for enhanced user feedback <sub><sup><sup>_ca6bcfb_</sup></sup></sub>
+
+* enhance TabNav rendering by integrating selection flash state into tab border styles for improved visual feedback <sub><sup><sup>_fb94185_</sup></sup></sub>
+
+* implement selection flash functionality in TabNav for enhanced user interaction during tab selection changes <sub><sup><sup>_abc3183_</sup></sup></sub>
+
+* add tab_entry_rect function to calculate layout for individual tabs based on orientation and available area <sub><sup><sup>_351698d_</sup></sup></sub>
+
+* implement tab reordering with pinned tabs support and enhance index remapping functionality <sub><sup><sup>_81fbf52_</sup></sup></sub>
+
+* add new demo GIFs for version 0.3 and 0.4 <sub><sup><sup>_9cef7dc_</sup></sup></sub>
+
+### 🐛 Fix(es)
+
+* update key binding for toggling selection flash in demo application from 'H' to 'F' <sub><sup><sup>_1591c56_</sup></sup></sub>
+
+* update tab selection logic to support pinned tabs during reordering <sub><sup><sup>_14b5a2d_</sup></sup></sub>
+
+* correct expected tab order in mouse reorder test for unpinned tabs <sub><sup><sup>_381441b_</sup></sup></sub>
+
+* correct Git remote name casing in releaseNOW script <sub><sup><sup>_39cd376_</sup></sup></sub>
+
+### 🔧 Maintenance
+
+* update Cargo.toml to exclude GIF assets from the package - to fix the size problem <sub><sup><sup>_3d0724f_</sup></sup></sub>
+
+* CG app version bump to v0.4.0 <sub><sup><sup>_bfeb414_</sup></sup></sub>
+
+* CG app version bump to v0.4.1 <sub><sup><sup>_9736013_</sup></sup></sub>
+
+* CG app version bump to v0.4.2 <sub><sup><sup>_f011811_</sup></sup></sub>
+
+* CG app version bump to v0.4.3 <sub><sup><sup>_5756157_</sup></sup></sub>
+
+* CG app version bump to v0.4.4 <sub><sup><sup>_6cea13d_</sup></sup></sub>
+
+* remove demo gif <sub><sup><sup>_f725281_</sup></sup></sub>
+
+### ℹ️ Documentation
+
+* update README to include tab reordering features and configuration options <sub><sup><sup>_66f0ee8_</sup></sup></sub>
+
+* update README to clarify drag reorder behavior and introduce selection flash details for TabNav <sub><sup><sup>_de07fed_</sup></sup></sub>
+
+* update demo GIFs in README for versions 0.3 and 0.4 <sub><sup><sup>_c69e024_</sup></sup></sub>
+
+### ♻️ Refactor
+
+* extract content status text into a separate method for improved readability <sub><sup><sup>_6d4958e_</sup></sup></sub>
+
+* simplify key handling for horizontal mode in demo application by removing redundant key mappings <sub><sup><sup>_2ef4c29_</sup></sup></sub>
+
+* streamline tab label handling in demo application by consolidating label retrieval logic and improving scroll state management <sub><sup><sup>_8ded299_</sup></sup></sub>
+
+* reorder module import to improve organization and clarity in lib.rs <sub><sup><sup>_a92781e_</sup></sup></sub>
+
+* optimize tab entry retrieval logic in TabNav by utilizing tab_entry_rect for improved clarity and performance <sub><sup><sup>_b18e3a3_</sup></sup></sub>
+
+* enhance code readability in render functions by simplifying match arms and formatting <sub><sup><sup>_a184536_</sup></sup></sub>
+
+* simplify function signature of can_drag_index for improved readability <sub><sup><sup>_372fa79_</sup></sup></sub>
+
+* improve code clarity by simplifying function calls and adding clear_scroll method to reset scroll offset <sub><sup><sup>_8a64264_</sup></sup></sub>
+
+* update demo application to enhance tab pinning logic and improve command recording clarity <sub><sup><sup>_61b52d6_</sup></sup></sub>
+
+* add remap_selected_index_with_pins function to reorder module for enhanced tab management <sub><sup><sup>_4c0c4ba_</sup></sup></sub>
+
+### 🧪 Tests
+
+* add unit test for mouse reordering of unpinned tabs in TabNavState <sub><sup><sup>_4691c45_</sup></sup></sub>
+
+* add unit test for highlighting source tab during reorder drag with indexed color <sub><sup><sup>_e770307_</sup></sup></sub>
+
+* add unit tests for unarmed drag highlighting and selection flash behavior in TabNav <sub><sup><sup>_c47e6bd_</sup></sup></sub>
+
+* add vertical tab index tests to validate tab positioning and scroll behavior <sub><sup><sup>_4e83b30_</sup></sup></sub>
+
+### 📝 Other
+
+* Merge pull request #14 (via ComfyGit) <sub><sup><sup>_b9ac919_</sup></sup></sub>
+
+* Merge pull request #15 (via ComfyGit) <sub><sup><sup>_7ba50e9_</sup></sup></sub>
+
+* Merge pull request #16 (via ComfyGit) <sub><sup><sup>_5f8c280_</sup></sup></sub>
+
+* Merge pull request #17 (via ComfyGit) <sub><sup><sup>_83f198c_</sup></sup></sub>
+
+* Merge pull request #18 (via ComfyGit) <sub><sup><sup>_a606156_</sup></sup></sub>
+
+---
+
 ## Changelog `v0.3.4` <sup><div align="end">🗓️ 2026-06-01</div></sup>
 
 ### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
