@@ -351,8 +351,16 @@ impl TabNavState {
             return None;
         }
         let previous = self.selected;
-        self.selected =
-            crate::reorder::remap_selected_index(self.selected, drag.source, drag.hover);
+        self.selected = crate::reorder::remap_selected_index_with_pins(
+            self.selected,
+            drag.source,
+            drag.hover,
+            if nav.reorder_policy == crate::config::TabReorderPolicy::SomePinned {
+                nav.tab_pinned
+            } else {
+                None
+            },
+        );
         self.notify_selection_changed(previous);
         Some(TabReorder {
             from: drag.source,
