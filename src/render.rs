@@ -14,11 +14,12 @@ use ratatui_core::{
 };
 
 use crate::TAB_BORDER;
-use crate::config::{TabBarEnd, TabOrientation, TabPadding};
+use crate::config::{HorizontalPosition, TabBarEnd, TabOrientation, TabPadding, VerticalPosition};
 use crate::layout::{
     TabViewport, auto_vertical_tab_height, char_display_width, compute_viewport,
     effective_indicator, effective_margin, effective_padding, effective_tab_bar_end,
-    horizontal_strip_height, label_char, label_origin, vertical_rail_width,
+    horizontal_strip_height, horizontal_strip_origin_y, label_char, label_origin,
+    vertical_rail_origin_x, vertical_rail_width,
 };
 use crate::nav::TabNav;
 use crate::state::TabNavState;
@@ -105,11 +106,13 @@ fn render_horizontal(
 
     let content_left = area.x + margin.start;
     let content_right = area.right() - margin.end;
-    let top_y = area.y;
-    let bot_y = area.y + strip_height - 1;
-    let label_y = area.y + TAB_BORDER + pad.top;
+    let top_y = horizontal_strip_origin_y(nav, area);
+    let bot_y = top_y + strip_height - 1;
+    let label_y = top_y + TAB_BORDER + pad.top;
+    let opens_down = nav.horizontal_position == HorizontalPosition::Top;
+    let baseline_y = if opens_down { bot_y } else { top_y };
 
-    draw_horizontal_baseline(content_left, content_right, bot_y, border, bs, buf);
+    draw_horizontal_baseline(content_left, content_right, baseline_y, border, bs, buf);
 
     let viewport = compute_viewport(nav, area, scroll_offset);
 
@@ -148,13 +151,19 @@ fn render_horizontal(
                     .set_symbol(sym)
                     .set_style(text_style);
             }
-            draw_active_bottom(left_x, right_x, bot_y, border, tab_border_style, buf);
-        } else {
+            if opens_down {
+                draw_active_bottom(left_x, right_x, bot_y, border, tab_border_style, buf);
+            } else {
+                draw_active_top(left_x, right_x, top_y, border, tab_border_style, buf);
+            }
+        } else if opens_down {
             draw_inactive_horizontal_bottom(left_x, right_x, bot_y, tab_border_style, buf);
+        } else {
+            draw_inactive_horizontal_top(left_x, right_x, top_y, tab_border_style, buf);
         }
     }
 
-    draw_horizontal_overflow_affordances(&viewport, bot_y, bs, buf);
+    draw_horizontal_overflow_affordances(&viewport, baseline_y, bs, buf);
 
     let first_visible_selected = viewport
         .entries
@@ -164,7 +173,7 @@ fn render_horizontal(
     apply_horizontal_tab_bar_end(
         content_left,
         content_right,
-        bot_y,
+        baseline_y,
         effective_tab_bar_end(nav),
         first_visible_selected,
         bs,
@@ -193,20 +202,14 @@ fn render_vertical(
 
     let border = &nav.border_set;
     let bs = nav.border_style;
-    let left_x = area.x;
-    let right_x = area.x + rail_width - 1;
+    let left_x = vertical_rail_origin_x(nav, area);
+    let right_x = left_x + rail_width - 1;
     let content_top = area.y + margin.start;
     let content_bottom = area.bottom() - margin.end;
+    let opens_right = nav.vertical_position == VerticalPosition::Left;
+    let baseline_x = if opens_right { right_x } else { left_x };
 
-    draw_vertical_baseline(
-        left_x,
-        right_x,
-        content_top,
-        content_bottom,
-        border,
-        bs,
-        buf,
-    );
+    draw_vertical_baseline(baseline_x, content_top, content_bottom, border, bs, buf);
 
     let positions = compute_viewport(nav, area, scroll_offset);
     let mut first_rendered: Option<(usize, u16)> = None;
@@ -226,7 +229,27 @@ fn render_vertical(
         let tab_border_style = tab_border_style(nav, bs, dragging, selection_flash);
 
         draw_top_border(left_x, right_x, top_y, border, tab_border_style, buf);
-        draw_vertical_side_borders(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
+        if opens_right {
+            draw_vertical_side_borders(
+                left_x,
+                right_x,
+                top_y,
+                bot_y,
+                border,
+                tab_border_style,
+                buf,
+            );
+        } else {
+            draw_vertical_side_borders_right(
+                left_x,
+                right_x,
+                top_y,
+                bot_y,
+                border,
+                tab_border_style,
+                buf,
+            );
+        }
         draw_vertical_label(
             left_x,
             right_x,
@@ -248,21 +271,28 @@ fn render_vertical(
                         .set_style(text_style);
                 }
             }
-            draw_active_right(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
-        } else {
+            if opens_right {
+                draw_active_right(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
+            } else {
+                draw_active_left(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
+            }
+        } else if opens_right {
             draw_inactive_vertical_right(left_x, right_x, top_y, bot_y, tab_border_style, buf);
+        } else {
+            draw_inactive_vertical_left(left_x, right_x, top_y, bot_y, tab_border_style, buf);
         }
     }
 
-    draw_vertical_overflow_affordances(&positions, right_x, bs, buf);
+    draw_vertical_overflow_affordances(&positions, baseline_x, bs, buf);
 
     if let Some((first_index, first_top)) = first_rendered {
         apply_vertical_tab_bar_end(
             first_index == selected,
             first_top,
-            right_x,
+            baseline_x,
             content_bottom,
             effective_tab_bar_end(nav),
+            opens_right,
             bs,
             buf,
         );
@@ -416,9 +446,10 @@ fn apply_horizontal_tab_bar_end(
 fn apply_vertical_tab_bar_end(
     first_active: bool,
     first_top: u16,
-    right_x: u16,
+    baseline_x: u16,
     content_bottom: u16,
     end_style: TabBarEnd,
+    opens_right: bool,
     style: Style,
     buf: &mut Buffer,
 ) {
@@ -426,23 +457,31 @@ fn apply_vertical_tab_bar_end(
         return;
     }
 
-    buf[(right_x, first_top)]
-        .set_symbol(if first_active { "─" } else { "┬" })
+    let top_junction = if first_active {
+        "─"
+    } else if opens_right {
+        "┬"
+    } else {
+        "┴"
+    };
+    buf[(baseline_x, first_top)]
+        .set_symbol(top_junction)
         .set_style(style);
 
-    let bottom_cap = match end_style {
-        TabBarEnd::Sqr => "└",
-        TabBarEnd::Rnd => "╰",
-        TabBarEnd::NoEnd => return,
+    let bottom_cap = match (end_style, opens_right) {
+        (TabBarEnd::Sqr, true) => "└",
+        (TabBarEnd::Rnd, true) => "╰",
+        (TabBarEnd::Sqr, false) => "┘",
+        (TabBarEnd::Rnd, false) => "╯",
+        (TabBarEnd::NoEnd, _) => return,
     };
-    buf[(right_x, content_bottom - 1)]
+    buf[(baseline_x, content_bottom - 1)]
         .set_symbol(bottom_cap)
         .set_style(style);
 }
 
 fn draw_vertical_baseline(
-    _left: u16,
-    right: u16,
+    baseline_x: u16,
     start_y: u16,
     end_y: u16,
     border: &symbols::border::Set,
@@ -450,7 +489,7 @@ fn draw_vertical_baseline(
     buf: &mut Buffer,
 ) {
     for y in start_y..end_y {
-        buf[(right, y)]
+        buf[(baseline_x, y)]
             .set_symbol(border.vertical_left)
             .set_style(style);
     }
@@ -532,6 +571,22 @@ fn draw_vertical_side_borders(
     for y in (top + 1)..bottom {
         buf[(left, y)]
             .set_symbol(border.vertical_left)
+            .set_style(style);
+    }
+}
+
+fn draw_vertical_side_borders_right(
+    _left: u16,
+    right: u16,
+    top: u16,
+    bottom: u16,
+    border: &symbols::border::Set,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    for y in (top + 1)..bottom {
+        buf[(right, y)]
+            .set_symbol(border.vertical_right)
             .set_style(style);
     }
 }
@@ -618,9 +673,31 @@ fn draw_active_bottom(
         .set_style(style);
 }
 
+fn draw_active_top(
+    left: u16,
+    right: u16,
+    y: u16,
+    border: &symbols::border::Set,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    buf[(left, y)].set_symbol(border.top_right).set_style(style);
+
+    for x in (left + 1)..right {
+        buf[(x, y)].set_symbol(" ").set_style(style);
+    }
+
+    buf[(right, y)].set_symbol(border.top_left).set_style(style);
+}
+
 fn draw_inactive_horizontal_bottom(left: u16, right: u16, y: u16, style: Style, buf: &mut Buffer) {
     buf[(left, y)].set_symbol("┴").set_style(style);
     buf[(right, y)].set_symbol("┴").set_style(style);
+}
+
+fn draw_inactive_horizontal_top(left: u16, right: u16, y: u16, style: Style, buf: &mut Buffer) {
+    buf[(left, y)].set_symbol("┬").set_style(style);
+    buf[(right, y)].set_symbol("┬").set_style(style);
 }
 
 fn draw_active_right(
@@ -655,4 +732,38 @@ fn draw_inactive_vertical_right(
 ) {
     buf[(right, top)].set_symbol("┤").set_style(style);
     buf[(right, bottom)].set_symbol("┤").set_style(style);
+}
+
+fn draw_active_left(
+    left: u16,
+    _right: u16,
+    top: u16,
+    bottom: u16,
+    border: &symbols::border::Set,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    buf[(left, top)]
+        .set_symbol(border.bottom_left)
+        .set_style(style);
+
+    for y in (top + 1)..bottom {
+        buf[(left, y)].set_symbol(" ").set_style(style);
+    }
+
+    buf[(left, bottom)]
+        .set_symbol(border.top_left)
+        .set_style(style);
+}
+
+fn draw_inactive_vertical_left(
+    left: u16,
+    _right: u16,
+    top: u16,
+    bottom: u16,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    buf[(left, top)].set_symbol("├").set_style(style);
+    buf[(left, bottom)].set_symbol("├").set_style(style);
 }
