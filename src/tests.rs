@@ -244,6 +244,57 @@ fn horizontal_tab_bar_end_rnd_selected() {
 }
 
 #[test]
+fn horizontal_tab_bar_end_sqr_bottom_selected() {
+    let area = Rect::new(0, 0, 20, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Tab"], 0)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Sqr),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert!(top_line.starts_with('│'));
+    assert!(top_line.ends_with('┘'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_sqr_bottom_inactive_first() {
+    let area = Rect::new(0, 0, 40, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["One", "Two"], 1)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Sqr),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert!(top_line.starts_with('┤'));
+    assert!(top_line.ends_with('┘'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_rnd_bottom_selected() {
+    let area = Rect::new(0, 0, 20, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Tab"], 0)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Rnd),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert!(top_line.starts_with('│'));
+    assert!(top_line.ends_with('╯'));
+}
+
+#[test]
 fn horizontal_tab_bar_end_rnd_inactive_first() {
     let area = Rect::new(0, 0, 40, 3);
     let mut buf = Buffer::empty(area);
@@ -282,6 +333,50 @@ fn vertical_tab_bar_end_rnd() {
     let right_col = col_str(&buf, width - 1);
     assert!(right_col.starts_with('─'));
     assert!(right_col.ends_with('╰'));
+}
+
+#[test]
+fn vertical_tab_bar_end_rnd_right_position() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd);
+    let width = nav.vertical_rail_width();
+    let height = auto_vertical_tab_height(tabs[0], TabPadding::vertical_default())
+        + auto_vertical_tab_height(tabs[1], TabPadding::vertical_default());
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let baseline_col: String = (0..height)
+        .map(|y| buf[(baseline_x, y)].symbol().to_string())
+        .collect();
+    assert!(baseline_col.starts_with('┴'));
+    assert!(baseline_col.ends_with('╯'));
+}
+
+#[test]
+fn vertical_tab_bar_end_sqr_right_selected_first() {
+    let label = vertical_label("Tab");
+    let tabs = [label.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr);
+    let width = nav.vertical_rail_width();
+    let height = auto_vertical_tab_height(tabs[0], TabPadding::vertical_default());
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let baseline_col: String = (0..height)
+        .map(|y| buf[(baseline_x, y)].symbol().to_string())
+        .collect();
+    assert!(baseline_col.starts_with('─'));
+    assert!(baseline_col.ends_with('┘'));
 }
 
 #[test]
