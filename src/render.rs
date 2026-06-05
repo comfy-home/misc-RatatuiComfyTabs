@@ -180,6 +180,7 @@ fn render_horizontal(
         baseline_y,
         effective_tab_bar_end(nav),
         first_visible_selected,
+        opens_down,
         bs,
         buf,
     );
@@ -419,32 +420,69 @@ fn draw_horizontal_baseline(
     }
 }
 
-fn apply_horizontal_tab_bar_end(
-    start: u16,
-    end: u16,
-    y: u16,
+fn horizontal_tab_bar_end_caps(
     end_style: TabBarEnd,
+    opens_down: bool,
     first_visible_selected: bool,
-    style: Style,
-    buf: &mut Buffer,
-) {
-    if end_style == TabBarEnd::NoEnd || end <= start {
-        return;
-    }
-
-    let (left_inactive, right_cap) = match end_style {
-        TabBarEnd::NoEnd => return,
-        TabBarEnd::Sqr => ("├", "┐"),
-        TabBarEnd::Rnd => ("├", "╮"),
+) -> Option<(&'static str, &'static str)> {
+    let (left_inactive, right_cap) = match (end_style, opens_down) {
+        (TabBarEnd::Sqr, true) => ("├", "┐"),
+        (TabBarEnd::Rnd, true) => ("├", "╮"),
+        (TabBarEnd::Sqr, false) => ("┤", "┘"),
+        (TabBarEnd::Rnd, false) => ("┤", "╯"),
+        (TabBarEnd::NoEnd, _) => return None,
     };
     let left_cap = if first_visible_selected {
         "│"
     } else {
         left_inactive
     };
+    Some((left_cap, right_cap))
+}
+
+fn apply_horizontal_tab_bar_end(
+    start: u16,
+    end: u16,
+    y: u16,
+    end_style: TabBarEnd,
+    first_visible_selected: bool,
+    opens_down: bool,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    if end <= start {
+        return;
+    }
+    let Some((left_cap, right_cap)) =
+        horizontal_tab_bar_end_caps(end_style, opens_down, first_visible_selected)
+    else {
+        return;
+    };
 
     buf[(start, y)].set_symbol(left_cap).set_style(style);
     buf[(end - 1, y)].set_symbol(right_cap).set_style(style);
+}
+
+fn vertical_tab_bar_end_caps(
+    end_style: TabBarEnd,
+    opens_right: bool,
+    first_active: bool,
+) -> Option<(&'static str, &'static str)> {
+    let top_junction = if first_active {
+        "─"
+    } else if opens_right {
+        "┬"
+    } else {
+        "┴"
+    };
+    let bottom_cap = match (end_style, opens_right) {
+        (TabBarEnd::Sqr, true) => "└",
+        (TabBarEnd::Rnd, true) => "╰",
+        (TabBarEnd::Sqr, false) => "┘",
+        (TabBarEnd::Rnd, false) => "╯",
+        (TabBarEnd::NoEnd, _) => return None,
+    };
+    Some((top_junction, bottom_cap))
 }
 
 fn apply_vertical_tab_bar_end(
@@ -457,28 +495,18 @@ fn apply_vertical_tab_bar_end(
     style: Style,
     buf: &mut Buffer,
 ) {
-    if end_style == TabBarEnd::NoEnd || content_bottom == 0 {
+    if content_bottom == 0 {
         return;
     }
-
-    let top_junction = if first_active {
-        "─"
-    } else if opens_right {
-        "┬"
-    } else {
-        "┴"
+    let Some((top_junction, bottom_cap)) =
+        vertical_tab_bar_end_caps(end_style, opens_right, first_active)
+    else {
+        return;
     };
+
     buf[(baseline_x, first_top)]
         .set_symbol(top_junction)
         .set_style(style);
-
-    let bottom_cap = match (end_style, opens_right) {
-        (TabBarEnd::Sqr, true) => "└",
-        (TabBarEnd::Rnd, true) => "╰",
-        (TabBarEnd::Sqr, false) => "┘",
-        (TabBarEnd::Rnd, false) => "╯",
-        (TabBarEnd::NoEnd, _) => return,
-    };
     buf[(baseline_x, content_bottom - 1)]
         .set_symbol(bottom_cap)
         .set_style(style);
