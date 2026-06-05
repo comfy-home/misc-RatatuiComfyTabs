@@ -11,8 +11,8 @@ use ratatui_core::style::{Color, Style};
 use ratatui_core::widgets::StatefulWidget;
 
 use crate::config::{
-    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
-    TabWheelDirection,
+    HorizontalPosition, OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding,
+    TabReorderPolicy, TabWheelDirection, VerticalPosition,
 };
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
@@ -420,6 +420,73 @@ fn tab_rects_respect_margin_and_overflow() {
 
     assert_eq!(rects.len(), 1);
     assert_eq!(rects[0].x, 2);
+}
+
+#[test]
+fn horizontal_bottom_strip_anchors_to_area_bottom() {
+    let tabs = ["A", "B"];
+    let nav = TabNav::new(&tabs, 0).horizontal_position(HorizontalPosition::Bottom);
+    let area = Rect::new(0, 4, 40, 7);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    assert_eq!(rects[0].y, area.bottom() - nav.horizontal_strip_height());
+    assert_eq!(rects[0].height, nav.horizontal_strip_height());
+}
+
+#[test]
+fn vertical_right_rail_anchors_to_area_right() {
+    let label = vertical_label("Tab");
+    let tabs = [label.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 8, nav.auto_tab_height(0).unwrap() + 4);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 1);
+    assert_eq!(rects[0].x, area.right() - width);
+    assert_eq!(rects[0].width, width);
+}
+
+#[test]
+fn vertical_right_active_tab_opens_left() {
+    let label = vertical_label("Tab");
+    let tabs = [label.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right);
+    let width = nav.vertical_rail_width();
+    let height = auto_vertical_tab_height(tabs[0], TabPadding::vertical_default());
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let active_col: String = (0..height)
+        .map(|y| buf[(area.right() - width, y)].symbol().to_string())
+        .collect();
+    let glyphs: Vec<char> = active_col.chars().collect();
+
+    assert_eq!(glyphs.first(), Some(&'╰'));
+    assert!(glyphs[1..glyphs.len() - 1].iter().all(|&ch| ch == ' '));
+    assert_eq!(glyphs.last(), Some(&'╭'));
+}
+
+#[test]
+fn horizontal_bottom_active_tab_opens_up() {
+    let area = Rect::new(0, 0, 30, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Hi"], 0).horizontal_position(HorizontalPosition::Bottom),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    let label_line = line_str(&buf, strip_top + 1);
+
+    assert!(top_line.starts_with('╮'));
+    assert!(label_line.contains("Hi"));
 }
 
 #[test]
