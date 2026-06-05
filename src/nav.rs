@@ -11,7 +11,8 @@ use ratatui_core::symbols;
 
 use crate::DEFAULT_INDICATOR;
 use crate::config::{
-    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
+    HorizontalPosition, OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding,
+    TabReorderPolicy, VerticalPosition,
 };
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_padding,
@@ -70,15 +71,19 @@ use crate::reorder::can_drag_index;
 /// Use [`tab_rects`](TabNav::tab_rects) for mouse hit targets or adjacent layout without
 /// duplicating the sizing math.
 ///
-/// - [`TabOrientation::Horizontal`]: baseline along the bottom. Indicator defaults to
-///   `Some("▸")`. Default [`TabMargin::ZERO`] and [`TabPadding::horizontal_default`].
-/// - [`TabOrientation::Vertical`]: baseline along the right edge. Indicator defaults to
-///   `None`. Default [`TabMargin::vertical_default`] and [`TabPadding::vertical_default`].
+/// - [`TabOrientation::Horizontal`]: baseline along the bottom ([`HorizontalPosition::Top`]) or
+///   top ([`HorizontalPosition::Bottom`]). Indicator defaults to `Some("▸")`. Default
+///   [`TabMargin::ZERO`] and [`TabPadding::horizontal_default`].
+/// - [`TabOrientation::Vertical`]: baseline along the right edge ([`VerticalPosition::Left`]) or
+///   left ([`VerticalPosition::Right`]). Indicator defaults to `None`. Default
+///   [`TabMargin::vertical_default`] and [`TabPadding::vertical_default`].
 #[must_use]
 pub struct TabNav<'a> {
     pub(crate) tabs: &'a [&'a str],
     pub(crate) selected: usize,
     pub(crate) orientation: TabOrientation,
+    pub(crate) horizontal_position: HorizontalPosition,
+    pub(crate) vertical_position: VerticalPosition,
     pub(crate) margin: Option<TabMargin>,
     pub(crate) padding: Option<TabPadding>,
     pub(crate) tab_bar_end: Option<TabBarEnd>,
@@ -111,6 +116,8 @@ impl<'a> TabNav<'a> {
             tabs,
             selected,
             orientation: TabOrientation::Horizontal,
+            horizontal_position: HorizontalPosition::default(),
+            vertical_position: VerticalPosition::default(),
             margin: None,
             padding: None,
             tab_bar_end: None,
@@ -140,6 +147,20 @@ impl<'a> TabNav<'a> {
     /// Horizontal strip above content, or vertical rail beside content.
     pub fn orientation(mut self, orientation: TabOrientation) -> Self {
         self.orientation = orientation;
+        self
+    }
+
+    /// Horizontal strip above ([`HorizontalPosition::Top`]) or below
+    /// ([`HorizontalPosition::Bottom`]) adjacent content. Default: [`HorizontalPosition::Top`].
+    pub fn horizontal_position(mut self, position: HorizontalPosition) -> Self {
+        self.horizontal_position = position;
+        self
+    }
+
+    /// Vertical rail on the left ([`VerticalPosition::Left`]) or right
+    /// ([`VerticalPosition::Right`]) of adjacent content. Default: [`VerticalPosition::Left`].
+    pub fn vertical_position(mut self, position: VerticalPosition) -> Self {
+        self.vertical_position = position;
         self
     }
 
