@@ -128,6 +128,26 @@ pub enum TabOrientation {
     Vertical,
 }
 
+/// Horizontal strip placement relative to adjacent content.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum HorizontalPosition {
+    /// Strip along the top edge; active tab opens downward (default).
+    #[default]
+    Top,
+    /// Strip along the bottom edge; active tab opens upward.
+    Bottom,
+}
+
+/// Vertical rail placement relative to adjacent content.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum VerticalPosition {
+    /// Rail along the left edge; active tab opens right (default).
+    #[default]
+    Left,
+    /// Rail along the right edge; active tab opens left.
+    Right,
+}
+
 /// Behaviour when tabs exceed available strip space.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OverflowPolicy {
