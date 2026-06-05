@@ -26,9 +26,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 use ratatui_comfy_tabs::{
-    HorizontalPosition, OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabNav, TabNavState,
-    TabOrientation, TabPadding, TabReorderPolicy, TabWheelDirection, VerticalPosition, tab_border,
-    try_reorder, vertical_label,
+    HorizontalPosition, OverflowPolicy, TabAxis, TabBarAlign, TabBarEnd, TabDirection, TabNav,
+    TabNavState, TabOrientation, TabPadding, TabReorderPolicy, TabWheelDirection, VerticalPosition,
+    tab_border, try_reorder, vertical_label,
 };
 use ratatui_core::widgets::StatefulWidget;
 use std::io::stdout;
@@ -79,6 +79,7 @@ struct App {
     mode: DemoMode,
     horizontal_position: HorizontalPosition,
     vertical_position: VerticalPosition,
+    tab_bar_align: TabBarAlign,
     border_kind: BorderKind,
     show_indicator: bool,
     padding_preset: PaddingPreset,
@@ -106,6 +107,7 @@ impl Default for App {
             mode: DemoMode::default(),
             horizontal_position: HorizontalPosition::default(),
             vertical_position: VerticalPosition::default(),
+            tab_bar_align: TabBarAlign::default(),
             border_kind: BorderKind::default(),
             show_indicator: false,
             padding_preset: PaddingPreset::default(),
@@ -332,6 +334,19 @@ impl App {
                         }
                         self.tab_state.clear_scroll();
                         self.tab_state.cancel_reorder_drag();
+                    }
+
+                    KeyCode::Char('a') | KeyCode::Char('A') => {
+                        self.tab_bar_align = match self.tab_bar_align {
+                            TabBarAlign::Start => TabBarAlign::Center,
+                            TabBarAlign::Center => TabBarAlign::End,
+                            TabBarAlign::End => TabBarAlign::Start,
+                        };
+                        self.tab_state.clear_scroll();
+                        self.record_command(format!(
+                            ".tab_bar_align(TabBarAlign::{:?});",
+                            self.tab_bar_align
+                        ));
                     }
 
                     KeyCode::Char('r') | KeyCode::Char('R') => {
@@ -759,6 +774,20 @@ impl App {
         }
     }
 
+    fn align_label(&self) -> &'static str {
+        match self.tab_bar_align {
+            TabBarAlign::Start => match self.mode {
+                DemoMode::Horizontal => "start",
+                DemoMode::Vertical => "top",
+            },
+            TabBarAlign::Center => "center",
+            TabBarAlign::End => match self.mode {
+                DemoMode::Horizontal => "end",
+                DemoMode::Vertical => "bottom",
+            },
+        }
+    }
+
     fn position_label(&self) -> &'static str {
         match self.mode {
             DemoMode::Horizontal => match self.horizontal_position {
@@ -805,7 +834,10 @@ impl App {
             nav = nav.horizontal_position(self.horizontal_position);
         }
 
-        nav = nav.tab_bar_end(self.tab_bar_end).all_caps(self.all_caps);
+        nav = nav
+            .tab_bar_end(self.tab_bar_end)
+            .tab_bar_align(self.tab_bar_align)
+            .all_caps(self.all_caps);
 
         if let Some(pad) = self.padding_for_mode() {
             nav = nav.padding(pad);
@@ -858,6 +890,7 @@ impl App {
         let click_label = if self.mouse_click { "on" } else { "off" };
         let reorder_label = self.reorder_policy_label();
         let position_label = self.position_label();
+        let align_label = self.align_label();
 
         let nav = match self.mode {
             DemoMode::Horizontal => vec![key("←"), dim("/"), key("→"), dim(" tabs")],
@@ -940,6 +973,12 @@ impl App {
                 key("P"),
                 dim(" position ("),
                 Span::styled(position_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("A"),
+                dim(" align ("),
+                Span::styled(align_label, Style::new().fg(Color::DarkGray)),
                 dim(")"),
             ],
             vec![
