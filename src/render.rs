@@ -127,7 +127,9 @@ fn render_horizontal(
         let text_style = tab_text_style(nav, active, dragging);
         let tab_border_style = tab_border_style(nav, bs, dragging, selection_flash);
 
-        draw_top_border(left_x, right_x, top_y, border, tab_border_style, buf);
+        if opens_down {
+            draw_top_border(left_x, right_x, top_y, border, tab_border_style, buf);
+        }
         draw_horizontal_side_borders(left_x, right_x, top_y, bot_y, border, tab_border_style, buf);
         draw_horizontal_label(
             left_x,
@@ -155,11 +157,13 @@ fn render_horizontal(
                 draw_active_bottom(left_x, right_x, bot_y, border, tab_border_style, buf);
             } else {
                 draw_active_top(left_x, right_x, top_y, border, tab_border_style, buf);
+                draw_bottom_border(left_x, right_x, bot_y, border, tab_border_style, buf);
             }
         } else if opens_down {
             draw_inactive_horizontal_bottom(left_x, right_x, bot_y, tab_border_style, buf);
         } else {
             draw_inactive_horizontal_top(left_x, right_x, top_y, tab_border_style, buf);
+            draw_bottom_border(left_x, right_x, bot_y, border, tab_border_style, buf);
         }
     }
 
