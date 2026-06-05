@@ -17,7 +17,7 @@ mod state;
 mod tests;
 
 pub use config::{
-    HorizontalPosition, OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabMargin,
+    HorizontalPosition, OverflowPolicy, TabAxis, TabBarAlign, TabBarEnd, TabDirection, TabMargin,
     TabOrientation, TabPadding, TabReorderPolicy, TabWheelDirection, VerticalPosition,
 };
 pub use label::vertical_label;
