@@ -11,8 +11,8 @@ use ratatui_core::style::{Color, Style};
 use ratatui_core::widgets::StatefulWidget;
 
 use crate::config::{
-    HorizontalPosition, OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding,
-    TabReorderPolicy, TabWheelDirection, VerticalPosition,
+    HorizontalPosition, OverflowPolicy, TabBarAlign, TabBarEnd, TabMargin, TabOrientation,
+    TabPadding, TabReorderPolicy, TabWheelDirection, VerticalPosition,
 };
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
@@ -382,6 +382,48 @@ fn vertical_overflow_tabs_are_omitted() {
 
     assert!(col.contains('A'));
     assert!(!col.contains('X'));
+}
+
+#[test]
+fn horizontal_center_aligns_tabs_in_wide_area() {
+    let tabs = ["A", "B"];
+    let nav = TabNav::new(&tabs, 0).tab_bar_align(TabBarAlign::Center);
+    let area = Rect::new(0, 0, 80, 3);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    let group_width = rects[1].x + rects[1].width - rects[0].x;
+    let expected_start = (area.width - group_width) / 2;
+    assert_eq!(rects[0].x, expected_start);
+}
+
+#[test]
+fn horizontal_end_aligns_tabs_in_wide_area() {
+    let tabs = ["A", "B"];
+    let nav = TabNav::new(&tabs, 0).tab_bar_align(TabBarAlign::End);
+    let area = Rect::new(0, 0, 80, 3);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    assert_eq!(rects[1].x + rects[1].width, area.right());
+}
+
+#[test]
+fn vertical_end_aligns_tabs_in_tall_area() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let first = first.as_str();
+    let second = second.as_str();
+    let tabs = [first, second];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_align(TabBarAlign::End);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width, 30);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    assert_eq!(rects[1].y + rects[1].height, area.bottom());
 }
 
 #[test]

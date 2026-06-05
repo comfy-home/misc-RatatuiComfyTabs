@@ -11,8 +11,8 @@ use ratatui_core::symbols;
 
 use crate::DEFAULT_INDICATOR;
 use crate::config::{
-    HorizontalPosition, OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding,
-    TabReorderPolicy, VerticalPosition,
+    HorizontalPosition, OverflowPolicy, TabBarAlign, TabBarEnd, TabMargin, TabOrientation,
+    TabPadding, TabReorderPolicy, VerticalPosition,
 };
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_padding,
@@ -84,6 +84,7 @@ pub struct TabNav<'a> {
     pub(crate) orientation: TabOrientation,
     pub(crate) horizontal_position: HorizontalPosition,
     pub(crate) vertical_position: VerticalPosition,
+    pub(crate) tab_bar_align: TabBarAlign,
     pub(crate) margin: Option<TabMargin>,
     pub(crate) padding: Option<TabPadding>,
     pub(crate) tab_bar_end: Option<TabBarEnd>,
@@ -118,6 +119,7 @@ impl<'a> TabNav<'a> {
             orientation: TabOrientation::Horizontal,
             horizontal_position: HorizontalPosition::default(),
             vertical_position: VerticalPosition::default(),
+            tab_bar_align: TabBarAlign::default(),
             margin: None,
             padding: None,
             tab_bar_end: None,
@@ -161,6 +163,13 @@ impl<'a> TabNav<'a> {
     /// ([`VerticalPosition::Right`]) of adjacent content. Default: [`VerticalPosition::Left`].
     pub fn vertical_position(mut self, position: VerticalPosition) -> Self {
         self.vertical_position = position;
+        self
+    }
+
+    /// Alignment along the strip flow axis within the allocated area.
+    /// Default: [`TabBarAlign::Start`] (left in horizontal mode, top in vertical mode).
+    pub fn tab_bar_align(mut self, align: TabBarAlign) -> Self {
+        self.tab_bar_align = align;
         self
     }
 
