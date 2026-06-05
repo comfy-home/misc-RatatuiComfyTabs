@@ -482,11 +482,15 @@ fn horizontal_bottom_active_tab_opens_up() {
         &mut buf,
     );
     let strip_top = area.bottom() - 3;
+    let strip_bottom = area.bottom() - 1;
     let top_line = line_str(&buf, strip_top);
     let label_line = line_str(&buf, strip_top + 1);
+    let bottom_line = line_str(&buf, strip_bottom);
 
     assert!(top_line.starts_with('╮'));
     assert!(label_line.contains("Hi"));
+    assert!(bottom_line.contains('╰'));
+    assert!(bottom_line.contains('╯'));
 }
 
 #[test]
