@@ -138,6 +138,24 @@ pub enum HorizontalPosition {
     Bottom,
 }
 
+/// Tab strip alignment within its allocated flow axis.
+///
+/// Horizontal mode: [`Start`](Self::Start) = left, [`Center`](Self::Center) = centred,
+/// [`End`](Self::End) = right.
+///
+/// Vertical mode: [`Start`](Self::Start) = top, [`Center`](Self::Center) = centred,
+/// [`End`](Self::End) = bottom.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TabBarAlign {
+    /// Leading edge of the flow axis (left / top).
+    #[default]
+    Start,
+    /// Centred when the strip is narrower than the allocated area.
+    Center,
+    /// Trailing edge of the flow axis (right / bottom).
+    End,
+}
+
 /// Vertical rail placement relative to adjacent content.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum VerticalPosition {
