@@ -8,7 +8,10 @@
 use ratatui_core::layout::Rect;
 use unicode_width::UnicodeWidthChar;
 
-use crate::config::{OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding};
+use crate::config::{
+    HorizontalPosition, OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding,
+    VerticalPosition,
+};
 use crate::nav::TabNav;
 use crate::{DEFAULT_INDICATOR, TAB_BORDER};
 
@@ -73,6 +76,22 @@ pub(crate) fn auto_vertical_tab_height(label: &str, pad: TabPadding) -> u16 {
 pub(crate) fn horizontal_strip_height(nav: &TabNav<'_>) -> u16 {
     let pad = effective_padding(nav);
     TAB_BORDER * 2 + pad.top + 1 + pad.bottom
+}
+
+pub(crate) fn horizontal_strip_origin_y(nav: &TabNav<'_>, area: Rect) -> u16 {
+    let strip_height = horizontal_strip_height(nav);
+    match nav.horizontal_position {
+        HorizontalPosition::Top => area.y,
+        HorizontalPosition::Bottom => area.bottom().saturating_sub(strip_height),
+    }
+}
+
+pub(crate) fn vertical_rail_origin_x(nav: &TabNav<'_>, area: Rect) -> u16 {
+    let rail_width = vertical_rail_width(nav).min(area.width);
+    match nav.vertical_position {
+        VerticalPosition::Left => area.x,
+        VerticalPosition::Right => area.right().saturating_sub(rail_width),
+    }
 }
 
 pub(crate) fn vertical_rail_width(nav: &TabNav<'_>) -> u16 {
@@ -146,7 +165,7 @@ pub(crate) fn tab_entry_rect(nav: &TabNav<'_>, area: Rect, entry: &TabEntry) -> 
             }
             Some(Rect {
                 x: entry.offset,
-                y: area.y,
+                y: horizontal_strip_origin_y(nav, area),
                 width: entry.size,
                 height: strip_height,
             })
@@ -159,7 +178,7 @@ pub(crate) fn tab_entry_rect(nav: &TabNav<'_>, area: Rect, entry: &TabEntry) -> 
                 return None;
             }
             Some(Rect {
-                x: area.x,
+                x: vertical_rail_origin_x(nav, area),
                 y: entry.offset,
                 width: rail_width,
                 height: entry.size,
