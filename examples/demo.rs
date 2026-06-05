@@ -707,10 +707,16 @@ impl App {
 
     fn content_border_set(&self) -> border::Set<'static> {
         let mut set = self.tab_border_set();
-        if self.mode == DemoMode::Vertical {
-            match self.vertical_position {
+        match self.mode {
+            DemoMode::Vertical => match self.vertical_position {
                 VerticalPosition::Left => set.top_left = "─",
                 VerticalPosition::Right => set.top_right = "─",
+            },
+            DemoMode::Horizontal => {
+                if self.horizontal_position == HorizontalPosition::Bottom {
+                    set.bottom_left = "─";
+                    set.bottom_right = "─";
+                }
             }
         }
         set
@@ -976,17 +982,58 @@ impl App {
             .border_style(Style::new().fg(border_color))
             .style(Style::new().fg(Color::White).bg(bg));
 
-        if self.mode == DemoMode::Vertical {
-            let borders = match self.vertical_position {
-                VerticalPosition::Left => Borders::TOP | Borders::RIGHT | Borders::BOTTOM,
-                VerticalPosition::Right => Borders::TOP | Borders::LEFT | Borders::BOTTOM,
-            };
-            block = block.borders(borders);
-        } else {
-            block = block.borders(Borders::ALL).title(format!(" {} ", title));
+        match self.mode {
+            DemoMode::Vertical => {
+                let borders = match self.vertical_position {
+                    VerticalPosition::Left => Borders::TOP | Borders::RIGHT | Borders::BOTTOM,
+                    VerticalPosition::Right => Borders::TOP | Borders::LEFT | Borders::BOTTOM,
+                };
+                block = block.borders(borders);
+            }
+            DemoMode::Horizontal => match self.horizontal_position {
+                HorizontalPosition::Top => {
+                    block = block.borders(Borders::ALL).title(format!(" {} ", title));
+                }
+                HorizontalPosition::Bottom => {
+                    block = block.borders(Borders::LEFT | Borders::TOP | Borders::RIGHT);
+                }
+            },
         }
 
         block
+    }
+
+    fn paint_horizontal_content_bottom_border(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        border_color: Color,
+    ) {
+        let title = self.selected_tab_name();
+        let bottom_title = format!("─ {title} ");
+        let style = Style::new().fg(border_color);
+        let border_set = self.content_border_set();
+        let bottom_y = area.bottom().saturating_sub(1);
+
+        for (offset, ch) in bottom_title.chars().enumerate() {
+            let x = area.x + offset as u16;
+            if x >= area.right() {
+                break;
+            }
+            buf[(x, bottom_y)].set_char(ch).set_style(style);
+        }
+
+        for x in (area.x + bottom_title.chars().count() as u16)..area.right() {
+            buf[(x, bottom_y)]
+                .set_symbol(border_set.horizontal_bottom)
+                .set_style(style);
+        }
+
+        if area.right() > area.x {
+            buf[(area.right() - 1, bottom_y)]
+                .set_symbol(border_set.bottom_right)
+                .set_style(style);
+        }
     }
 
     fn paint_vertical_content_top_border(&self, area: Rect, buf: &mut Buffer, border_color: Color) {
@@ -1055,8 +1102,15 @@ impl App {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        if self.mode == DemoMode::Vertical {
-            self.paint_vertical_content_top_border(area, buf, border_color);
+        match self.mode {
+            DemoMode::Vertical => {
+                self.paint_vertical_content_top_border(area, buf, border_color);
+            }
+            DemoMode::Horizontal => {
+                if self.horizontal_position == HorizontalPosition::Bottom {
+                    self.paint_horizontal_content_bottom_border(area, buf, border_color);
+                }
+            }
         }
 
         let shortcut_lines = self.shortcut_footer_lines(inner.width);
@@ -1122,14 +1176,18 @@ impl App {
         let strip_height = self
             .prepare_tab_nav(&labels, &mut pin_buf)
             .horizontal_strip_height();
-        let [tabs, content] = match self.horizontal_position {
+        let (tabs, content) = match self.horizontal_position {
             HorizontalPosition::Top => {
-                Layout::vertical([Constraint::Length(strip_height), Constraint::Fill(1)])
-                    .areas(area)
+                let [tabs, content] =
+                    Layout::vertical([Constraint::Length(strip_height), Constraint::Fill(1)])
+                        .areas(area);
+                (tabs, content)
             }
             HorizontalPosition::Bottom => {
-                Layout::vertical([Constraint::Fill(1), Constraint::Length(strip_height)])
-                    .areas(area)
+                let [content, tabs] =
+                    Layout::vertical([Constraint::Fill(1), Constraint::Length(strip_height)])
+                        .areas(area);
+                (tabs, content)
             }
         };
 
@@ -1175,14 +1233,18 @@ impl App {
 
     fn render_vertical(&mut self, frame: &mut Frame, area: Rect, bg: Color, border_color: Color) {
         let rail_width = self.vertical_rail_width();
-        let [tabs, content] = match self.vertical_position {
+        let (tabs, content) = match self.vertical_position {
             VerticalPosition::Left => {
-                Layout::horizontal([Constraint::Length(rail_width), Constraint::Fill(1)])
-                    .areas(area)
+                let [tabs, content] =
+                    Layout::horizontal([Constraint::Length(rail_width), Constraint::Fill(1)])
+                        .areas(area);
+                (tabs, content)
             }
             VerticalPosition::Right => {
-                Layout::horizontal([Constraint::Fill(1), Constraint::Length(rail_width)])
-                    .areas(area)
+                let [content, tabs] =
+                    Layout::horizontal([Constraint::Fill(1), Constraint::Length(rail_width)])
+                        .areas(area);
+                (tabs, content)
             }
         };
 
