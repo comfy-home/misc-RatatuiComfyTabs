@@ -707,16 +707,10 @@ impl App {
 
     fn content_border_set(&self) -> border::Set<'static> {
         let mut set = self.tab_border_set();
-        match self.mode {
-            DemoMode::Vertical => match self.vertical_position {
+        if self.mode == DemoMode::Vertical {
+            match self.vertical_position {
                 VerticalPosition::Left => set.top_left = "─",
                 VerticalPosition::Right => set.top_right = "─",
-            },
-            DemoMode::Horizontal => {
-                if self.horizontal_position == HorizontalPosition::Bottom {
-                    set.bottom_left = "─";
-                    set.bottom_right = "─";
-                }
             }
         }
         set
@@ -976,7 +970,7 @@ impl App {
         wrap_footer_segments(self.shortcut_footer_segments(), width.max(1) as usize)
     }
 
-    fn content_block<'a>(&self, title: &'a str, border_color: Color, bg: Color) -> Block<'a> {
+    fn content_block<'a>(&self, _title: &'a str, border_color: Color, bg: Color) -> Block<'a> {
         let mut block = Block::default()
             .border_set(self.content_border_set())
             .border_style(Style::new().fg(border_color))
@@ -990,50 +984,16 @@ impl App {
                 };
                 block = block.borders(borders);
             }
-            DemoMode::Horizontal => match self.horizontal_position {
-                HorizontalPosition::Top => {
-                    block = block.borders(Borders::ALL).title(format!(" {} ", title));
-                }
-                HorizontalPosition::Bottom => {
-                    block = block.borders(Borders::LEFT | Borders::TOP | Borders::RIGHT);
-                }
-            },
+            DemoMode::Horizontal => {
+                let borders = match self.horizontal_position {
+                    HorizontalPosition::Top => Borders::LEFT | Borders::RIGHT | Borders::BOTTOM,
+                    HorizontalPosition::Bottom => Borders::LEFT | Borders::TOP | Borders::RIGHT,
+                };
+                block = block.borders(borders);
+            }
         }
 
         block
-    }
-
-    fn paint_horizontal_content_bottom_border(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        border_color: Color,
-    ) {
-        let title = self.selected_tab_name();
-        let bottom_title = format!("─ {title} ");
-        let style = Style::new().fg(border_color);
-        let border_set = self.content_border_set();
-        let bottom_y = area.bottom().saturating_sub(1);
-
-        for (offset, ch) in bottom_title.chars().enumerate() {
-            let x = area.x + offset as u16;
-            if x >= area.right() {
-                break;
-            }
-            buf[(x, bottom_y)].set_char(ch).set_style(style);
-        }
-
-        for x in (area.x + bottom_title.chars().count() as u16)..area.right() {
-            buf[(x, bottom_y)]
-                .set_symbol(border_set.horizontal_bottom)
-                .set_style(style);
-        }
-
-        if area.right() > area.x {
-            buf[(area.right() - 1, bottom_y)]
-                .set_symbol(border_set.bottom_right)
-                .set_style(style);
-        }
     }
 
     fn paint_vertical_content_top_border(&self, area: Rect, buf: &mut Buffer, border_color: Color) {
@@ -1102,23 +1062,28 @@ impl App {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        match self.mode {
-            DemoMode::Vertical => {
-                self.paint_vertical_content_top_border(area, buf, border_color);
-            }
-            DemoMode::Horizontal => {
-                if self.horizontal_position == HorizontalPosition::Bottom {
-                    self.paint_horizontal_content_bottom_border(area, buf, border_color);
-                }
-            }
+        if self.mode == DemoMode::Vertical {
+            self.paint_vertical_content_top_border(area, buf, border_color);
         }
 
         let shortcut_lines = self.shortcut_footer_lines(inner.width);
         let footer_height = shortcut_lines.len().clamp(1, 8) as u16;
         let shortcuts = Paragraph::new(Text::from(shortcut_lines)).alignment(Alignment::Center);
 
+        let body_inner = if self.mode == DemoMode::Horizontal {
+            let [title_area, body_area] =
+                Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(inner);
+            Line::from(format!(" {} ", self.selected_tab_name()))
+                .style(Style::new().fg(border_color))
+                .render(title_area, buf);
+            body_area
+        } else {
+            inner
+        };
+
         let [main, footer] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(footer_height)]).areas(inner);
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(footer_height)])
+                .areas(body_inner);
 
         let [top_spacer, command_area, status_area, bottom_spacer] = Layout::vertical([
             Constraint::Fill(1),
