@@ -950,6 +950,7 @@ fn demo_exact_width_95_end_align_sqr_trailing_cap() {
     let area = Rect::new(0, 0, width, 3);
     let mut buf = Buffer::empty(area);
     draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "├");
     assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
 }
 
@@ -960,6 +961,7 @@ fn demo_exact_width_96_end_align_sqr_trailing_cap() {
     let area = Rect::new(0, 0, width, 3);
     let mut buf = Buffer::empty(area);
     draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "┌");
     assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
 }
 
@@ -970,6 +972,7 @@ fn demo_exact_width_95_center_sqr_trailing_cap() {
     let area = Rect::new(0, 0, width, 3);
     let mut buf = Buffer::empty(area);
     draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "│");
     assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
 }
 
