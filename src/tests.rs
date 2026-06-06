@@ -273,7 +273,7 @@ fn horizontal_tab_bar_end_sqr_bottom_inactive_first() {
     );
     let strip_top = area.bottom() - 3;
     let top_line = line_str(&buf, strip_top);
-    assert!(top_line.starts_with('┤'));
+    assert!(top_line.starts_with('├'));
     assert!(top_line.ends_with('┘'));
 }
 
@@ -292,6 +292,106 @@ fn horizontal_tab_bar_end_rnd_bottom_selected() {
     let top_line = line_str(&buf, strip_top);
     assert!(top_line.starts_with('│'));
     assert!(top_line.ends_with('╯'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_center_align() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('┌'));
+    assert!(bot_line.ends_with('┐'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_center_align_bottom() {
+    let area = Rect::new(0, 0, 60, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert_eq!(top_line.chars().next(), Some('└'));
+    assert!(top_line.ends_with('┘'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_center_align_rnd_top() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .tab_bar_end(TabBarEnd::Rnd)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('╭'));
+    assert!(bot_line.ends_with('╮'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_end_align() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 1)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::End),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('┌'));
+    assert!(bot_line.ends_with('│'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_end_align_last_not_selected() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::End),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('┌'));
+    assert!(bot_line.ends_with('┤'));
+}
+
+#[test]
+fn vertical_tab_bar_end_center_align() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Center);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width, 30);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let right_col = col_str(&buf, width - 1);
+    assert_eq!(right_col.chars().next(), Some('┘'));
+    assert!(right_col.ends_with('└'));
 }
 
 #[test]
