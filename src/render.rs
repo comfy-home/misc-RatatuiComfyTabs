@@ -548,12 +548,18 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
     if args.flow_end <= args.flow_start {
         return;
     }
-    let Some((_, group_end)) = args.viewport.group_bounds() else {
+    let Some((group_start, group_end)) = args.viewport.group_bounds() else {
         return;
+    };
+    let exact_fit = group_start == args.flow_start && group_end == args.flow_end;
+    let cap_align = if exact_fit {
+        TabBarAlign::Start
+    } else {
+        args.align
     };
     let Some((leading, _aligned_trailing)) = horizontal_tab_bar_end_caps(
         args.end_style,
-        args.align,
+        cap_align,
         args.viewport,
         args.selected,
         args.opens_down,
