@@ -126,6 +126,18 @@ pub(crate) struct TabViewport {
     pub(crate) after_affordance_at: Option<u16>,
 }
 
+impl TabViewport {
+    /// Primary-axis span of visible tabs: `(group_start, group_end)` with `group_end` exclusive.
+    pub(crate) fn group_bounds(&self) -> Option<(u16, u16)> {
+        let first = self.entries.first()?;
+        let last = self.entries.last()?;
+        Some((
+            first.offset,
+            last.offset.saturating_add(last.size),
+        ))
+    }
+}
+
 fn flow_bounds(nav: &TabNav<'_>, area: Rect) -> Option<(u16, u16)> {
     if nav.tabs.is_empty() {
         return None;

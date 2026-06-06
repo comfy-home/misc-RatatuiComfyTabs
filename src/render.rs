@@ -451,6 +451,24 @@ fn mirror_cap_horizontally(symbol: &'static str) -> &'static str {
     }
 }
 
+fn horizontal_tab_trailing_junction(last_visible_selected: bool) -> &'static str {
+    if last_visible_selected {
+        "│"
+    } else {
+        "┤"
+    }
+}
+
+fn horizontal_margin_trailing_cap(end_style: TabBarEnd, opens_down: bool) -> Option<&'static str> {
+    match (end_style, opens_down) {
+        (TabBarEnd::Sqr, true) => Some("┐"),
+        (TabBarEnd::Rnd, true) => Some("╮"),
+        (TabBarEnd::Sqr, false) => Some("┘"),
+        (TabBarEnd::Rnd, false) => Some("╯"),
+        (TabBarEnd::NoEnd, _) => None,
+    }
+}
+
 fn horizontal_start_tab_bar_end_caps(
     end_style: TabBarEnd,
     opens_down: bool,
@@ -530,9 +548,18 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
     if args.flow_end <= args.flow_start {
         return;
     }
-    let Some((leading, trailing)) = horizontal_tab_bar_end_caps(
+    let Some((group_start, group_end)) = args.viewport.group_bounds() else {
+        return;
+    };
+    let exact_fit = group_start == args.flow_start && group_end == args.flow_end;
+    let cap_align = if exact_fit {
+        TabBarAlign::Start
+    } else {
+        args.align
+    };
+    let Some((leading, _aligned_trailing)) = horizontal_tab_bar_end_caps(
         args.end_style,
-        args.align,
+        cap_align,
         args.viewport,
         args.selected,
         args.opens_down,
@@ -540,12 +567,29 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
         return;
     };
 
+    let last_visible_selected = args
+        .viewport
+        .entries
+        .last()
+        .is_some_and(|entry| entry.index == args.selected);
+    let trailing_in_slack = group_end < args.flow_end;
+    let tab_junction = horizontal_tab_trailing_junction(last_visible_selected);
+
     buf[(args.flow_start, args.baseline_y)]
         .set_symbol(leading)
         .set_style(args.style);
-    buf[(args.flow_end - 1, args.baseline_y)]
-        .set_symbol(trailing)
-        .set_style(args.style);
+
+    if trailing_in_slack {
+        if let Some(margin_cap) = horizontal_margin_trailing_cap(args.end_style, args.opens_down) {
+            buf[(args.flow_end - 1, args.baseline_y)]
+                .set_symbol(margin_cap)
+                .set_style(args.style);
+        }
+    } else {
+        buf[(group_end - 1, args.baseline_y)]
+            .set_symbol(tab_junction)
+            .set_style(args.style);
+    }
 }
 
 fn vertical_start_tab_bar_end_caps(
