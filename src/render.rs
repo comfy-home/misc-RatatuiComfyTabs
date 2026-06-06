@@ -172,15 +172,17 @@ fn render_horizontal(
     draw_horizontal_overflow_affordances(&viewport, baseline_y, bs, buf);
 
     apply_horizontal_tab_bar_end(
-        content_left,
-        content_right,
-        baseline_y,
-        effective_tab_bar_end(nav),
-        nav.tab_bar_align,
-        &viewport,
-        selected,
-        opens_down,
-        bs,
+        ApplyHorizontalTabBarEndArgs {
+            flow_start: content_left,
+            flow_end: content_right,
+            baseline_y,
+            end_style: effective_tab_bar_end(nav),
+            align: nav.tab_bar_align,
+            viewport: &viewport,
+            selected,
+            opens_down,
+            style: bs,
+        },
         buf,
     );
 }
@@ -287,15 +289,17 @@ fn render_vertical(
 
     if !positions.entries.is_empty() {
         apply_vertical_tab_bar_end(
-            content_top,
-            content_bottom,
-            baseline_x,
-            effective_tab_bar_end(nav),
-            nav.tab_bar_align,
-            &positions,
-            selected,
-            opens_right,
-            bs,
+            ApplyVerticalTabBarEndArgs {
+                content_top,
+                content_bottom,
+                baseline_x,
+                end_style: effective_tab_bar_end(nav),
+                align: nav.tab_bar_align,
+                viewport: &positions,
+                selected,
+                opens_right,
+                style: bs,
+            },
             buf,
         );
     }
@@ -466,6 +470,30 @@ fn horizontal_start_tab_bar_end_caps(
     Some((leading, trailing))
 }
 
+struct ApplyHorizontalTabBarEndArgs<'a> {
+    flow_start: u16,
+    flow_end: u16,
+    baseline_y: u16,
+    end_style: TabBarEnd,
+    align: TabBarAlign,
+    viewport: &'a TabViewport,
+    selected: usize,
+    opens_down: bool,
+    style: Style,
+}
+
+struct ApplyVerticalTabBarEndArgs<'a> {
+    content_top: u16,
+    content_bottom: u16,
+    baseline_x: u16,
+    end_style: TabBarEnd,
+    align: TabBarAlign,
+    viewport: &'a TabViewport,
+    selected: usize,
+    opens_right: bool,
+    style: Style,
+}
+
 fn horizontal_tab_bar_end_caps(
     end_style: TabBarEnd,
     align: TabBarAlign,
@@ -498,33 +526,26 @@ fn horizontal_tab_bar_end_caps(
     Some((leading, trailing))
 }
 
-fn apply_horizontal_tab_bar_end(
-    flow_start: u16,
-    flow_end: u16,
-    baseline_y: u16,
-    end_style: TabBarEnd,
-    align: TabBarAlign,
-    viewport: &TabViewport,
-    selected: usize,
-    opens_down: bool,
-    style: Style,
-    buf: &mut Buffer,
-) {
-    if flow_end <= flow_start {
+fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Buffer) {
+    if args.flow_end <= args.flow_start {
         return;
     }
-    let Some((leading, trailing)) =
-        horizontal_tab_bar_end_caps(end_style, align, viewport, selected, opens_down)
-    else {
+    let Some((leading, trailing)) = horizontal_tab_bar_end_caps(
+        args.end_style,
+        args.align,
+        args.viewport,
+        args.selected,
+        args.opens_down,
+    ) else {
         return;
     };
 
-    buf[(flow_start, baseline_y)]
+    buf[(args.flow_start, args.baseline_y)]
         .set_symbol(leading)
-        .set_style(style);
-    buf[(flow_end - 1, baseline_y)]
+        .set_style(args.style);
+    buf[(args.flow_end - 1, args.baseline_y)]
         .set_symbol(trailing)
-        .set_style(style);
+        .set_style(args.style);
 }
 
 fn vertical_start_tab_bar_end_caps(
@@ -552,73 +573,64 @@ fn vertical_start_tab_bar_end_caps(
     Some((leading, trailing))
 }
 
-fn apply_vertical_tab_bar_end(
-    content_top: u16,
-    content_bottom: u16,
-    baseline_x: u16,
-    end_style: TabBarEnd,
-    align: TabBarAlign,
-    viewport: &TabViewport,
-    selected: usize,
-    opens_right: bool,
-    style: Style,
-    buf: &mut Buffer,
-) {
-    if content_bottom == 0 {
+fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer) {
+    if args.content_bottom == 0 {
         return;
     }
 
-    let first_visible_active = viewport
+    let first_visible_active = args
+        .viewport
         .entries
         .first()
-        .is_some_and(|entry| entry.index == selected);
-    let last_visible_active = viewport
+        .is_some_and(|entry| entry.index == args.selected);
+    let last_visible_active = args
+        .viewport
         .entries
         .last()
-        .is_some_and(|entry| entry.index == selected);
+        .is_some_and(|entry| entry.index == args.selected);
 
     let Some((start_leading, start_trailing)) =
-        vertical_start_tab_bar_end_caps(end_style, opens_right, first_visible_active)
+        vertical_start_tab_bar_end_caps(args.end_style, args.opens_right, first_visible_active)
     else {
         return;
     };
 
-    match align {
+    match args.align {
         TabBarAlign::Start => {
-            if let Some(first) = viewport.entries.first() {
-                buf[(baseline_x, first.offset)]
+            if let Some(first) = args.viewport.entries.first() {
+                buf[(args.baseline_x, first.offset)]
                     .set_symbol(start_leading)
-                    .set_style(style);
+                    .set_style(args.style);
             }
-            buf[(baseline_x, content_bottom - 1)]
+            buf[(args.baseline_x, args.content_bottom - 1)]
                 .set_symbol(start_trailing)
-                .set_style(style);
+                .set_style(args.style);
         }
         TabBarAlign::Center => {
             let leading = flip_vertical_cap_horizontally(start_trailing);
-            buf[(baseline_x, content_top)]
+            buf[(args.baseline_x, args.content_top)]
                 .set_symbol(leading)
-                .set_style(style);
-            buf[(baseline_x, content_bottom - 1)]
+                .set_style(args.style);
+            buf[(args.baseline_x, args.content_bottom - 1)]
                 .set_symbol(start_trailing)
-                .set_style(style);
+                .set_style(args.style);
         }
         TabBarAlign::End => {
             let leading = mirror_cap_horizontally(start_trailing);
             let trailing = if last_visible_active {
                 "─"
-            } else if opens_right {
+            } else if args.opens_right {
                 "┴"
             } else {
                 "┬"
             };
-            buf[(baseline_x, content_top)]
+            buf[(args.baseline_x, args.content_top)]
                 .set_symbol(leading)
-                .set_style(style);
-            if let Some(last) = viewport.entries.last() {
-                buf[(baseline_x, last.offset + last.size - 1)]
+                .set_style(args.style);
+            if let Some(last) = args.viewport.entries.last() {
+                buf[(args.baseline_x, last.offset + last.size - 1)]
                     .set_symbol(trailing)
-                    .set_style(style);
+                    .set_style(args.style);
             }
         }
     }

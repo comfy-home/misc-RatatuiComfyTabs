@@ -206,21 +206,25 @@ fn reserve_scroll_affordance(
 
 fn align_shift(
     align: TabBarAlign,
-    flow_start: u16,
-    flow_end: u16,
+    align_start: u16,
+    align_end: u16,
     group_start: u16,
     group_end: u16,
 ) -> u16 {
-    let flow_span = flow_end.saturating_sub(flow_start);
+    let align_span = align_end.saturating_sub(align_start);
     let group_span = group_end.saturating_sub(group_start);
-    if group_span >= flow_span {
+    if group_span >= align_span {
         return 0;
     }
-    let slack = flow_span - group_span;
     match align {
         TabBarAlign::Start => 0,
-        TabBarAlign::Center => slack / 2,
-        TabBarAlign::End => slack,
+        TabBarAlign::Center => {
+            let slack = align_span - group_span;
+            align_start
+                .saturating_add(slack / 2)
+                .saturating_sub(group_start)
+        }
+        TabBarAlign::End => align_end.saturating_sub(group_end),
     }
 }
 
@@ -270,7 +274,9 @@ fn build_backward_entries(
 
     for index in (0..total).rev() {
         let size = primary_tab_size(nav, index, nav.tabs[index], pad);
-        let next_start = pos.saturating_sub(size);
+        let Some(next_start) = pos.checked_sub(size) else {
+            break;
+        };
         if next_start < flow_start {
             break;
         }
@@ -313,6 +319,7 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
 
     let mut entries = build_forward_entries(nav, pad, first_index, content_start, flow_end);
     let mut clipped_after = entries.last().is_some_and(|entry| entry.index + 1 < total);
+    let mut end_packed = false;
 
     if nav.tab_bar_align == TabBarAlign::End
         && nav.overflow == OverflowPolicy::Truncate
@@ -321,15 +328,19 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
         entries = build_backward_entries(nav, pad, flow_start, flow_end);
         clipped_before = entries.first().is_some_and(|entry| entry.index > 0);
         clipped_after = false;
+        end_packed = true;
     }
 
-    if let (Some(first), Some(last)) = (entries.first(), entries.last()) {
+    if !end_packed && let (Some(first), Some(last)) = (entries.first(), entries.last()) {
         let group_start = first.offset;
         let group_end = last.offset.saturating_add(last.size);
+        let align_start = content_start;
+        let align_end =
+            flow_end.saturating_sub(usize::from(clipped_after && nav.overflow_affordance) as u16);
         let shift = align_shift(
             nav.tab_bar_align,
-            flow_start,
-            flow_end,
+            align_start,
+            align_end,
             group_start,
             group_end,
         );

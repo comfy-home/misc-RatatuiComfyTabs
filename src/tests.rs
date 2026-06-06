@@ -604,6 +604,104 @@ fn horizontal_end_aligns_tabs_in_wide_area() {
 }
 
 #[test]
+fn horizontal_end_truncate_tabs_do_not_overlap() {
+    let tabs = ["AAA", "BBB", "CCC", "DDD"];
+    let nav = TabNav::new(&tabs, 0).tab_bar_align(TabBarAlign::End);
+    let area = Rect::new(0, 0, 24, 3);
+    let rects = nav.tab_rects(area);
+
+    assert!(rects.len() >= 2);
+    for (i, left) in rects.iter().enumerate() {
+        for right in &rects[i + 1..] {
+            assert!(
+                left.x + left.width <= right.x || right.x + right.width <= left.x,
+                "tabs overlap: {left:?} {right:?}"
+            );
+        }
+    }
+    assert_eq!(
+        rects.last().unwrap().x + rects.last().unwrap().width,
+        area.right()
+    );
+}
+
+#[test]
+fn horizontal_end_scroll_renders_without_buffer_panic() {
+    let tabs = ["One", "Two", "Three", "Four", "Five"];
+    let area = Rect::new(0, 0, 28, 3);
+    let nav = TabNav::new(&tabs, 4)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Scroll);
+    let mut state = TabNavState::new(4);
+    state.ensure_selected_visible(&nav, area);
+
+    let rects = nav.tab_rects_with_scroll(area, state.scroll_offset);
+    for rect in &rects {
+        assert!(rect.x + rect.width <= area.right());
+        assert!(rect.right() <= area.right());
+    }
+
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+}
+
+#[test]
+fn vertical_end_scroll_renders_without_buffer_panic() {
+    let labels: Vec<String> = ["One", "Two", "Three", "Four", "Five"]
+        .into_iter()
+        .map(vertical_label)
+        .collect();
+    let tabs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tabs, 4)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Scroll);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width, 12);
+    let mut state = TabNavState::new(4);
+    state.ensure_selected_visible(&nav, area);
+
+    let rects = nav.tab_rects_with_scroll(area, state.scroll_offset);
+    for rect in &rects {
+        assert!(rect.y + rect.height <= area.bottom());
+        assert!(rect.bottom() <= area.bottom());
+    }
+
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+}
+
+#[test]
+fn vertical_end_truncate_tabs_do_not_overlap() {
+    let labels: Vec<String> = ["A", "B", "C", "D"]
+        .into_iter()
+        .map(vertical_label)
+        .collect();
+    let tabs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_align(TabBarAlign::End);
+    let width = nav.vertical_rail_width();
+    let tab_height = nav.auto_tab_height(0).unwrap();
+    let area = Rect::new(0, 0, width, tab_height * 2 + 1);
+    let rects = nav.tab_rects(area);
+
+    assert!(rects.len() >= 2);
+    for (i, upper) in rects.iter().enumerate() {
+        for lower in &rects[i + 1..] {
+            assert!(
+                upper.y + upper.height <= lower.y || lower.y + lower.height <= upper.y,
+                "tabs overlap: {upper:?} {lower:?}"
+            );
+        }
+    }
+    assert_eq!(
+        rects.last().unwrap().y + rects.last().unwrap().height,
+        area.bottom()
+    );
+}
+
+#[test]
 fn vertical_end_aligns_tabs_in_tall_area() {
     let first = vertical_label("One");
     let second = vertical_label("Two");
