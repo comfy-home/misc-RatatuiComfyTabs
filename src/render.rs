@@ -117,8 +117,11 @@ fn render_horizontal(
     draw_horizontal_baseline(content_left, content_right, baseline_y, border, bs, buf);
 
     let viewport = compute_viewport(nav, area, scroll_offset);
+    let trailing_in_slack = viewport
+        .group_bounds()
+        .is_some_and(|(_, group_end)| group_end < content_right);
 
-    for entry in &viewport.entries {
+    for (entry_index, entry) in viewport.entries.iter().enumerate() {
         let label = nav.tabs[entry.index];
         let active = entry.index == selected;
         let dragging = is_reorder_drag_source(entry.index, reorder_drag);
@@ -126,6 +129,7 @@ fn render_horizontal(
             nav_state.is_some_and(|state| state.selection_flash_border_on(entry.index));
         let left_x = entry.offset;
         let right_x = entry.offset + entry.size - 1;
+        let is_last_visible = entry_index + 1 == viewport.entries.len();
         let text_style = tab_text_style(nav, active, dragging);
         let tab_border_style = tab_border_style(nav, bs, dragging, selection_flash);
 
@@ -162,9 +166,25 @@ fn render_horizontal(
                 draw_bottom_border(left_x, right_x, bot_y, border, tab_border_style, buf);
             }
         } else if opens_down {
-            draw_inactive_horizontal_bottom(left_x, right_x, bot_y, tab_border_style, buf);
+            draw_inactive_horizontal_bottom(
+                left_x,
+                right_x,
+                bot_y,
+                tab_border_style,
+                buf,
+                is_last_visible && trailing_in_slack,
+                None,
+            );
         } else {
-            draw_inactive_horizontal_top(left_x, right_x, top_y, tab_border_style, buf);
+            draw_inactive_horizontal_top(
+                left_x,
+                right_x,
+                top_y,
+                tab_border_style,
+                buf,
+                is_last_visible && trailing_in_slack,
+                None,
+            );
             draw_bottom_border(left_x, right_x, bot_y, border, tab_border_style, buf);
         }
     }
@@ -451,6 +471,24 @@ fn mirror_cap_horizontally(symbol: &'static str) -> &'static str {
     }
 }
 
+fn horizontal_tab_trailing_junction(last_visible_selected: bool) -> &'static str {
+    if last_visible_selected {
+        "│"
+    } else {
+        "┤"
+    }
+}
+
+fn horizontal_margin_trailing_cap(end_style: TabBarEnd, opens_down: bool) -> Option<&'static str> {
+    match (end_style, opens_down) {
+        (TabBarEnd::Sqr, true) => Some("┐"),
+        (TabBarEnd::Rnd, true) => Some("╮"),
+        (TabBarEnd::Sqr, false) => Some("┘"),
+        (TabBarEnd::Rnd, false) => Some("╯"),
+        (TabBarEnd::NoEnd, _) => None,
+    }
+}
+
 fn horizontal_start_tab_bar_end_caps(
     end_style: TabBarEnd,
     opens_down: bool,
@@ -530,7 +568,10 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
     if args.flow_end <= args.flow_start {
         return;
     }
-    let Some((leading, trailing)) = horizontal_tab_bar_end_caps(
+    let Some((_, group_end)) = args.viewport.group_bounds() else {
+        return;
+    };
+    let Some((leading, _aligned_trailing)) = horizontal_tab_bar_end_caps(
         args.end_style,
         args.align,
         args.viewport,
@@ -540,12 +581,34 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
         return;
     };
 
+    let last_visible_selected = args
+        .viewport
+        .entries
+        .last()
+        .is_some_and(|entry| entry.index == args.selected);
+    let trailing_in_slack = group_end < args.flow_end;
+    let tab_junction = horizontal_tab_trailing_junction(last_visible_selected);
+
     buf[(args.flow_start, args.baseline_y)]
         .set_symbol(leading)
         .set_style(args.style);
-    buf[(args.flow_end - 1, args.baseline_y)]
-        .set_symbol(trailing)
-        .set_style(args.style);
+
+    if trailing_in_slack {
+        buf[(group_end - 1, args.baseline_y)]
+            .set_symbol(tab_junction)
+            .set_style(args.style);
+        if let Some(margin_cap) =
+            horizontal_margin_trailing_cap(args.end_style, args.opens_down)
+        {
+            buf[(args.flow_end - 1, args.baseline_y)]
+                .set_symbol(margin_cap)
+                .set_style(args.style);
+        }
+    } else {
+        buf[(group_end - 1, args.baseline_y)]
+            .set_symbol(tab_junction)
+            .set_style(args.style);
+    }
 }
 
 fn vertical_start_tab_bar_end_caps(
@@ -846,14 +909,32 @@ fn draw_active_top(
     buf[(right, y)].set_symbol(border.top_left).set_style(style);
 }
 
-fn draw_inactive_horizontal_bottom(left: u16, right: u16, y: u16, style: Style, buf: &mut Buffer) {
+fn draw_inactive_horizontal_bottom(
+    left: u16,
+    right: u16,
+    y: u16,
+    style: Style,
+    buf: &mut Buffer,
+    trailing_continues: bool,
+    trailing_cap: Option<&str>,
+) {
     buf[(left, y)].set_symbol("┴").set_style(style);
-    buf[(right, y)].set_symbol("┴").set_style(style);
+    let trailing = trailing_cap.unwrap_or(if trailing_continues { "┤" } else { "┴" });
+    buf[(right, y)].set_symbol(trailing).set_style(style);
 }
 
-fn draw_inactive_horizontal_top(left: u16, right: u16, y: u16, style: Style, buf: &mut Buffer) {
+fn draw_inactive_horizontal_top(
+    left: u16,
+    right: u16,
+    y: u16,
+    style: Style,
+    buf: &mut Buffer,
+    trailing_continues: bool,
+    trailing_cap: Option<&str>,
+) {
     buf[(left, y)].set_symbol("┬").set_style(style);
-    buf[(right, y)].set_symbol("┬").set_style(style);
+    let trailing = trailing_cap.unwrap_or(if trailing_continues { "┤" } else { "┬" });
+    buf[(right, y)].set_symbol(trailing).set_style(style);
 }
 
 fn draw_active_right(
