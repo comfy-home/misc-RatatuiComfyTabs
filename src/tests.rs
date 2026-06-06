@@ -871,6 +871,131 @@ fn scroll_mode_shows_later_tabs() {
     assert!(mid_line.contains("Three") || mid_line.contains("Four"));
 }
 
+const DEMO_TABS: [&str; 7] = [
+    "Overview", "Nodes", "Network", "Content", "UI", "Config", "Logs",
+];
+
+fn demo_nav(selected: usize, end: TabBarEnd, align: TabBarAlign) -> TabNav<'static> {
+    TabNav::new(&DEMO_TABS, selected)
+        .tab_bar_end(end)
+        .tab_bar_align(align)
+}
+
+fn demo_total_width(nav: &TabNav<'_>) -> u16 {
+    (0..nav.tabs.len())
+        .map(|index| nav.auto_tab_width(index).unwrap())
+        .sum()
+}
+
+#[test]
+fn demo_exact_width_95_start_sqr_end_caps() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav);
+    assert_eq!(width, 95);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(
+        buf[(0, baseline_y)].symbol(),
+        "│",
+        "leading cap at width {width}"
+    );
+    assert_eq!(
+        buf[(width - 1, baseline_y)].symbol(),
+        "┤",
+        "trailing junction at width {width}"
+    );
+}
+
+#[test]
+fn demo_exact_width_95_start_sqr_last_tab_selected() {
+    let nav = demo_nav(6, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(width - 1, 2)].symbol(), "│");
+}
+
+#[test]
+fn demo_exact_width_96_start_sqr_end_caps() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav) + 1;
+    assert_eq!(width, 96);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(buf[(0, baseline_y)].symbol(), "│");
+    assert_eq!(buf[(width - 1, baseline_y)].symbol(), "┐");
+}
+
+#[test]
+fn demo_exact_width_96_start_sqr_trailing_junction() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(buf[(width - 2, baseline_y)].symbol(), "┤");
+    assert_eq!(buf[(width - 1, baseline_y)].symbol(), "┐");
+}
+
+#[test]
+fn demo_exact_width_95_end_align_sqr_trailing_cap() {
+    let nav = demo_nav(1, TabBarEnd::Sqr, TabBarAlign::End);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
+}
+
+#[test]
+fn demo_exact_width_96_end_align_sqr_trailing_cap() {
+    let nav = demo_nav(1, TabBarEnd::Sqr, TabBarAlign::End);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
+}
+
+#[test]
+fn demo_exact_width_95_center_sqr_trailing_cap() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Center);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
+}
+
+#[test]
+fn demo_exact_width_96_center_sqr_trailing_cap() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Center);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(width - 2, 2)].symbol(), "┤");
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┐");
+}
+
+#[test]
+fn demo_exact_width_95_start_rnd_end_caps() {
+    let nav = demo_nav(0, TabBarEnd::Rnd, TabBarAlign::Start);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(buf[(0, baseline_y)].symbol(), "│");
+    assert_eq!(buf[(width - 1, baseline_y)].symbol(), "┤");
+}
+
 #[test]
 fn truncate_shows_overflow_affordance() {
     let area = Rect::new(0, 0, 20, 3);
