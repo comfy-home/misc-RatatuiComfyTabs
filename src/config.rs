@@ -59,12 +59,14 @@ pub enum TabReorderPolicy {
 
 /// End-cap style for the tab strip baseline.
 ///
-/// Cap glyphs mirror with strip position:
+/// Cap glyphs depend on strip position and [`TabBarAlign`]:
 ///
-/// - [`HorizontalPosition::Top`]: `├`/`┐` or `│`/`┐` (selected first tab); [`HorizontalPosition::Bottom`]:
-///   `┤`/`┘` or `│`/`┘`.
-/// - [`VerticalPosition::Left`]: top `┬`/`─`, bottom `└`; [`VerticalPosition::Right`]: top `┴`/`─`,
-///   bottom `┘` (square) or `╯` (rounded).
+/// - [`TabBarAlign::Start`]: leading/trailing caps at the flow-axis margins; horizontal
+///   leading stays `├`/`│` with only the trailing cap flipping for [`HorizontalPosition::Bottom`].
+/// - [`TabBarAlign::Center`]: leading cap mirrors the start trailing cap horizontally
+///   (`┐`→`┌` / `┘`→`└`, or rounded equivalents); trailing unchanged. Vertical center
+///   caps sit on the margin only, not on the first tab.
+/// - [`TabBarAlign::End`]: leading/trailing caps swap and mirror relative to [`TabBarAlign::Start`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TabBarEnd {
     /// Continuous baseline with no corner caps.
