@@ -203,19 +203,6 @@ fn tab_fits_before_end(pos: u16, size: u16, flow_end: u16) -> bool {
     pos.saturating_add(size) <= flow_end
 }
 
-fn reserve_scroll_affordance(
-    pos: u16,
-    size: u16,
-    flow_end: u16,
-    has_more: bool,
-    nav: &TabNav<'_>,
-) -> bool {
-    if nav.overflow != OverflowPolicy::Scroll || !has_more || !nav.overflow_affordance {
-        return tab_fits_before_end(pos, size, flow_end);
-    }
-    pos.saturating_add(size).saturating_add(1) <= flow_end
-}
-
 fn align_shift(
     align: TabBarAlign,
     align_start: u16,
@@ -253,13 +240,8 @@ fn build_forward_entries(
 
     for index in first_index..total {
         let size = primary_tab_size(nav, index, nav.tabs[index], pad);
-        let has_more = index + 1 < total;
 
         if !tab_fits_before_end(pos, size, flow_end) {
-            break;
-        }
-
-        if !reserve_scroll_affordance(pos, size, flow_end, has_more, nav) {
             break;
         }
 
@@ -319,14 +301,11 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
     let total = nav.tabs.len();
     let mut first_index = 0usize;
     let mut clipped_before = false;
-    let mut content_start = flow_start;
+    let content_start = flow_start;
 
     if nav.overflow == OverflowPolicy::Scroll {
         first_index = scroll_offset.min(total.saturating_sub(1));
         clipped_before = first_index > 0;
-        if clipped_before && nav.overflow_affordance {
-            content_start = content_start.saturating_add(1);
-        }
     }
 
     let mut entries = build_forward_entries(nav, pad, first_index, content_start, flow_end);
@@ -347,8 +326,14 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
         let group_start = first.offset;
         let group_end = last.offset.saturating_add(last.size);
         let align_start = content_start;
-        let align_end =
-            flow_end.saturating_sub(usize::from(clipped_after && nav.overflow_affordance) as u16);
+        let align_end = if nav.overflow == OverflowPolicy::Truncate
+            && clipped_after
+            && nav.overflow_affordance
+        {
+            flow_end.saturating_sub(1)
+        } else {
+            flow_end
+        };
         let shift = align_shift(
             nav.tab_bar_align,
             align_start,
@@ -363,8 +348,10 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
         }
     }
 
-    let before_affordance_at = (clipped_before && nav.overflow_affordance).then_some(flow_start);
-    let after_affordance_at = if clipped_after && nav.overflow_affordance {
+    let truncate_affordance =
+        nav.overflow == OverflowPolicy::Truncate && nav.overflow_affordance;
+    let before_affordance_at = (clipped_before && truncate_affordance).then_some(flow_start);
+    let after_affordance_at = if clipped_after && truncate_affordance {
         Some(flow_end.saturating_sub(1))
     } else {
         None
