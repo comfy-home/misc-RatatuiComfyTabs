@@ -596,23 +596,19 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
     }
 }
 
-fn vertical_tab_leading_junction(first_visible_active: bool, opens_right: bool) -> &'static str {
+fn vertical_tab_leading_junction(first_visible_active: bool) -> &'static str {
     if first_visible_active {
         "─"
-    } else if opens_right {
-        "┬"
     } else {
-        "┴"
+        "┬"
     }
 }
 
-fn vertical_tab_trailing_junction(last_visible_active: bool, opens_right: bool) -> &'static str {
+fn vertical_tab_trailing_junction(last_visible_active: bool) -> &'static str {
     if last_visible_active {
         "─"
-    } else if opens_right {
-        "┴"
     } else {
-        "┬"
+        "┴"
     }
 }
 
@@ -638,13 +634,10 @@ fn mirror_cap_for_vertical_rail(symbol: &'static str, opens_right: bool) -> &'st
 fn vertical_tab_bar_junctions(
     first_visible_active: bool,
     last_visible_active: bool,
-    opens_right: bool,
 ) -> (&'static str, &'static str) {
-    let leading = vertical_tab_leading_junction(first_visible_active, true);
-    let trailing = vertical_tab_trailing_junction(last_visible_active, true);
     (
-        mirror_cap_for_vertical_rail(leading, opens_right),
-        mirror_cap_for_vertical_rail(trailing, opens_right),
+        vertical_tab_leading_junction(first_visible_active),
+        vertical_tab_trailing_junction(last_visible_active),
     )
 }
 
@@ -693,7 +686,6 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
     let (leading_junction, trailing_junction) = vertical_tab_bar_junctions(
         first_visible_active,
         last_visible_active,
-        args.opens_right,
     );
     let (margin_leading, margin_trailing) =
         vertical_tab_bar_margin_caps(args.end_style, args.opens_right);
