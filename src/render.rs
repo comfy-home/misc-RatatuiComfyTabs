@@ -559,23 +559,12 @@ fn horizontal_margin_trailing_cap(end_style: TabBarEnd, opens_down: bool) -> Opt
     }
 }
 
-fn horizontal_start_tab_bar_end_caps(
-    end_style: TabBarEnd,
-    opens_down: bool,
-    first_visible_selected: bool,
-) -> Option<(&'static str, &'static str)> {
-    if end_style == TabBarEnd::NoEnd {
-        return None;
-    }
-    let trailing = match (end_style, opens_down) {
-        (TabBarEnd::Sqr, true) => "┐",
-        (TabBarEnd::Rnd, true) => "╮",
-        (TabBarEnd::Sqr, false) => "┘",
-        (TabBarEnd::Rnd, false) => "╯",
-        (TabBarEnd::NoEnd, _) => return None,
-    };
-    let leading = if first_visible_selected { "│" } else { "├" };
-    Some((leading, trailing))
+fn horizontal_margin_leading_cap(end_style: TabBarEnd, opens_down: bool) -> Option<&'static str> {
+    horizontal_margin_trailing_cap(end_style, opens_down).map(mirror_cap_horizontally)
+}
+
+fn horizontal_tab_leading_junction(first_visible_selected: bool) -> &'static str {
+    if first_visible_selected { "│" } else { "├" }
 }
 
 struct ApplyHorizontalTabBarEndArgs<'a> {
@@ -602,38 +591,6 @@ struct ApplyVerticalTabBarEndArgs<'a> {
     style: Style,
 }
 
-fn horizontal_tab_bar_end_caps(
-    end_style: TabBarEnd,
-    align: TabBarAlign,
-    viewport: &TabViewport,
-    selected: usize,
-    opens_down: bool,
-) -> Option<(&'static str, &'static str)> {
-    let first_visible_selected = viewport
-        .entries
-        .first()
-        .is_some_and(|entry| entry.index == selected);
-    let last_visible_selected = viewport
-        .entries
-        .last()
-        .is_some_and(|entry| entry.index == selected);
-    let (mut leading, mut trailing) =
-        horizontal_start_tab_bar_end_caps(end_style, opens_down, first_visible_selected)?;
-
-    match align {
-        TabBarAlign::Start => {}
-        TabBarAlign::Center => {
-            leading = mirror_cap_horizontally(trailing);
-        }
-        TabBarAlign::End => {
-            leading = mirror_cap_horizontally(trailing);
-            trailing = if last_visible_selected { "│" } else { "┤" };
-        }
-    }
-
-    Some((leading, trailing))
-}
-
 fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Buffer) {
     if args.flow_end <= args.flow_start {
         return;
@@ -641,44 +598,97 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
     let Some((group_start, group_end)) = args.viewport.group_bounds() else {
         return;
     };
+    if args.end_style == TabBarEnd::NoEnd {
+        return;
+    }
+
+    let first_visible_selected = args
+        .viewport
+        .entries
+        .first()
+        .is_some_and(|entry| entry.index == args.selected);
+    let last_visible_selected = args
+        .viewport
+        .entries
+        .last()
+        .is_some_and(|entry| entry.index == args.selected);
+
     let exact_fit = group_start == args.flow_start && group_end == args.flow_end;
     let cap_align = if exact_fit {
         TabBarAlign::Start
     } else {
         args.align
     };
-    let Some((leading, _aligned_trailing)) = horizontal_tab_bar_end_caps(
-        args.end_style,
-        cap_align,
-        args.viewport,
-        args.selected,
-        args.opens_down,
-    ) else {
-        return;
-    };
 
-    let last_visible_selected = args
-        .viewport
-        .entries
-        .last()
-        .is_some_and(|entry| entry.index == args.selected);
+    let leading_in_slack = group_start > args.flow_start;
     let trailing_in_slack = group_end < args.flow_end;
-    let tab_junction = horizontal_tab_trailing_junction(last_visible_selected);
+    let leading_junction = horizontal_tab_leading_junction(first_visible_selected);
+    let trailing_junction = horizontal_tab_trailing_junction(last_visible_selected);
+    let margin_leading = horizontal_margin_leading_cap(args.end_style, args.opens_down);
+    let margin_trailing = horizontal_margin_trailing_cap(args.end_style, args.opens_down);
 
-    buf[(args.flow_start, args.baseline_y)]
-        .set_symbol(leading)
-        .set_style(args.style);
+    if exact_fit {
+        buf[(args.flow_start, args.baseline_y)]
+            .set_symbol(leading_junction)
+            .set_style(args.style);
+        buf[(group_end - 1, args.baseline_y)]
+            .set_symbol(trailing_junction)
+            .set_style(args.style);
+        return;
+    }
 
-    if trailing_in_slack {
-        if let Some(margin_cap) = horizontal_margin_trailing_cap(args.end_style, args.opens_down) {
-            buf[(args.flow_end - 1, args.baseline_y)]
-                .set_symbol(margin_cap)
+    match cap_align {
+        TabBarAlign::Start => {
+            buf[(args.flow_start, args.baseline_y)]
+                .set_symbol(leading_junction)
+                .set_style(args.style);
+            if trailing_in_slack && let Some(cap) = margin_trailing {
+                buf[(args.flow_end - 1, args.baseline_y)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
+            } else {
+                buf[(group_end - 1, args.baseline_y)]
+                    .set_symbol(trailing_junction)
+                    .set_style(args.style);
+            }
+        }
+        TabBarAlign::Center => {
+            if leading_in_slack && let Some(cap) = margin_leading {
+                buf[(args.flow_start, args.baseline_y)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
+            }
+            if let Some(first) = args.viewport.entries.first()
+                && !leading_in_slack
+            {
+                buf[(first.offset, args.baseline_y)]
+                    .set_symbol(leading_junction)
+                    .set_style(args.style);
+            }
+            if trailing_in_slack && let Some(cap) = margin_trailing {
+                buf[(args.flow_end - 1, args.baseline_y)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
+            } else if let Some(last) = args.viewport.entries.last() {
+                buf[(last.offset + last.size - 1, args.baseline_y)]
+                    .set_symbol(trailing_junction)
+                    .set_style(args.style);
+            }
+        }
+        TabBarAlign::End => {
+            if leading_in_slack && let Some(cap) = margin_leading {
+                buf[(args.flow_start, args.baseline_y)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
+            } else if let Some(first) = args.viewport.entries.first() {
+                buf[(first.offset, args.baseline_y)]
+                    .set_symbol(leading_junction)
+                    .set_style(args.style);
+            }
+            buf[(group_end - 1, args.baseline_y)]
+                .set_symbol(trailing_junction)
                 .set_style(args.style);
         }
-    } else {
-        buf[(group_end - 1, args.baseline_y)]
-            .set_symbol(tab_junction)
-            .set_style(args.style);
     }
 }
 
@@ -803,9 +813,20 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
                     .set_symbol(cap)
                     .set_style(args.style);
             }
+            if let Some(first) = args.viewport.entries.first()
+                && !leading_in_slack
+            {
+                buf[(args.baseline_x, first.offset)]
+                    .set_symbol(leading_junction)
+                    .set_style(args.style);
+            }
             if trailing_in_slack && let Some(cap) = margin_trailing {
                 buf[(args.baseline_x, args.content_bottom - 1)]
                     .set_symbol(cap)
+                    .set_style(args.style);
+            } else if let Some(last) = args.viewport.entries.last() {
+                buf[(args.baseline_x, last.offset + last.size - 1)]
+                    .set_symbol(trailing_junction)
                     .set_style(args.style);
             }
         }
