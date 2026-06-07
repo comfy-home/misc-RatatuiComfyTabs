@@ -421,12 +421,16 @@ fn draw_horizontal_baseline(
     }
 }
 
-fn flip_vertical_cap_horizontally(symbol: &'static str) -> &'static str {
+fn mirror_cap_vertically(symbol: &'static str) -> &'static str {
     match symbol {
-        "└" => "┘",
-        "╰" => "╯",
-        "┘" => "└",
-        "╯" => "╰",
+        "┌" => "└",
+        "└" => "┌",
+        "┐" => "┘",
+        "┘" => "┐",
+        "╭" => "╰",
+        "╰" => "╭",
+        "╮" => "╯",
+        "╯" => "╮",
         "┬" => "┴",
         "┴" => "┬",
         other => other,
@@ -651,7 +655,7 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
                 .set_style(args.style);
         }
         TabBarAlign::Center => {
-            let leading = flip_vertical_cap_horizontally(start_trailing);
+            let leading = mirror_cap_vertically(start_trailing);
             buf[(args.baseline_x, args.content_top)]
                 .set_symbol(leading)
                 .set_style(args.style);
