@@ -12,13 +12,40 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 
 ---
 
-<details><summary>👀 What's new in v0.4.4 ...</summary>
+<details><summary>👀 What's new in v0.5.9 ...</summary>
 
 ### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
 
 <sup>💬 Intro:</sup>  
-<sup>_First of all, our apologies, developers! I forgot to exclude the demo GIF in Cargo.toml which caused the crate being over 7MB🤦 in v0.3.x... it is fixed now._</sup>  
-<sup>_Apart from that, this release brings 2 exciting features that made my hair even greyer, but they both worked out very well in the end._</sup>  
+<sup>_Again, quite big functional improvements. GIF showing new features attached. All features well documented._</sup>  
+
+#### **1. &nbsp;&nbsp;&nbsp;Full tab-bar alignment support!**
+- `start`|`end`|`center`
+- available in both modes `horizontal`|`vertical`
+- enhanced rendering
+
+#### **2. &nbsp;&nbsp;&nbsp;New positioning logic!**
+- Horizontal mode enhanced with `Bottom` position
+- Vertical with `Right`
+- fully adjusted rendering to all positions
+
+#### **3. &nbsp;&nbsp;&nbsp;Scrolling indicator overhaul!**
+- Unified scroll indication
+- `OverflowPolicy::Scroll` is now default
+  - make sure to apply `Truncate` if it fits better your use case 
+
+#### **4. &nbsp;&nbsp;&nbsp;Lowering minimum Rust version from 1.95 to 1.88**
+- follows the current Ratatui MSRV
+- compile test passes on 1.88 
+
+
+<sub>...  🎉 Enjoy!</sub>
+
+<br><br>
+
+<details><summary>👀 See previous changes...</summary>
+<br>
+<details><summary>v0-4-4 ...</summary>
 
 #### **1. &nbsp;&nbsp;&nbsp;Selection FLASH Indication**
 - The feature is well documented + I attached a separate GIF to highlight this feature + it's in DEMO example (feel free to examine), so just a few bullet points here:
@@ -37,10 +64,8 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 
 <sub>...  🎉 Enjoy!</sub>
 
-<br><br>
-
-<details><summary>👀 See previous changes...</summary>
 <br>
+</details>
 <details><summary>v0-3-4 ...</summary>
 
 #### **1. &nbsp;&nbsp;&nbsp;Just a HOTFIX release.**
@@ -72,11 +97,12 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 <br>
 
 ---
-<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.4.4)</sup>
+<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs/-/releases/v0.5.9)</sup>
 
 ---
 
 </details>
+
 
 
 
