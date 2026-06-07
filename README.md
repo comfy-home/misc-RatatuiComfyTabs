@@ -109,7 +109,9 @@ Introduced in <code>v0.3.4</code> (GIF) :
 - Configurable [`TabMargin`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabMargin.html) and [`TabPadding`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabPadding.html) with orientation-specific defaults
 - [`tab_rects`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_rects) for hit targets and adjacent layout without duplicating width math
 - Optional per-tab size overrides via [`tab_widths`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_widths) / [`tab_heights`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_heights)
-- [`OverflowPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.OverflowPolicy.html) truncate or scroll with edge affordances (`‹` / `›` / `…`)
+- [`OverflowPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.OverflowPolicy.html) scroll (default) or truncate; in-tab scroll hints (`⯇` / `⯈` / `⯅` / `⯆`); truncate may show `…` on the baseline
+- [`TabBarAlign`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabBarAlign.html) start, center, or end packing along the strip
+- [`HorizontalPosition`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.HorizontalPosition.html) / [`VerticalPosition`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.VerticalPosition.html) strip placement and open direction
 - Unicode-aware label width via `unicode-width` (CJK and wide glyphs size correctly)
 - [`StatefulWidget`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) with [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) and [`TabAxis`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) navigation helpers
 - Mouse wheel tab switching over the strip via [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) (enabled by default)
@@ -128,7 +130,7 @@ Or add it manually to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ratatui-comfy-tabs = "0.3"
+ratatui-comfy-tabs = "0.5"
 ratatui = "0.30"
 ```
 
@@ -160,6 +162,9 @@ ratatui-comfy-tabs
     │
     ├── TabNav builder (all have sensible defaults)
     │   ├── orientation()          Horizontal | Vertical
+    │   ├── horizontal_position()  Top | Bottom
+    │   ├── vertical_position()    Left | Right
+    │   ├── tab_bar_align()        Start | Center | End
     │   ├── margin()               TabMargin (strip inset on flow axis)
     │   ├── padding()              TabPadding (interior tab box spacing)
     │   ├── tab_bar_end()          NoEnd | Sqr | Rnd
@@ -171,9 +176,9 @@ ratatui-comfy-tabs
     │   ├── indicator()            Option<&str>  (▸ horizontal default; none vertical)
     │   ├── border_set()           Rnd | Sqr
     │   ├── tab_widths() / tab_heights()   per-tab size overrides
-    │   ├── overflow()             Truncate | Scroll
+    │   ├── overflow()             Scroll | Truncate
     │   ├── scroll_offset()        usize (stateless Scroll mode only)
-    │   ├── overflow_affordance()  bool (default true)
+    │   ├── overflow_affordance()  bool — truncate `…` on baseline (default true)
     │   ├── mouse_wheel()          bool (default true; app must forward events)
     │   ├── mouse_click()          bool (default true; app must forward events)
     │   ├── reorder_policy()       AllPinned | NonePinned | SomePinned
@@ -251,6 +256,9 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | Method | Default | Description |
 |--------|---------|-------------|
 | `orientation()` | `Horizontal` | `Horizontal` or `Vertical` tab strip |
+| `horizontal_position()` | `Top` | Horizontal strip above or below content |
+| `vertical_position()` | `Left` | Vertical rail on the left or right |
+| `tab_bar_align()` | `Start` | Pack tabs at start, center, or end of strip |
 | `margin()` | orientation-specific | Strip inset — see [Margin](#margin) |
 | `padding()` | orientation-specific | Interior tab spacing — see [Padding](#padding) |
 | `tab_bar_end()` | `NoEnd` | Baseline end caps — see [Tab bar end](#tab-bar-end) |
@@ -264,9 +272,9 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | `tab_widths()` | auto | Override horizontal tab widths (columns) |
 | `tab_heights()` | auto | Override vertical tab heights (rows) |
 | `tab_rects(area)` | — | Layout `Rect` per visible tab (for hit targets) |
-| `overflow()` | `Truncate` | `Truncate` or `Scroll` when tabs exceed space |
+| `overflow()` | `Scroll` | `Scroll` (default) or `Truncate` when tabs exceed space |
 | `scroll_offset()` | `0` | First visible tab for stateless scroll mode |
-| `overflow_affordance()` | `true` | `‹` / `›` / `…` at clipped edges |
+| `overflow_affordance()` | `true` | Truncate mode: `…` at clipped baseline edge |
 | `mouse_wheel()` | `true` | Allow wheel tab switching over the strip |
 | `mouse_click()` | `true` | Allow click tab selection on visible tabs |
 | `reorder_policy()` | `AllPinned` | `NonePinned` / `SomePinned` drag reorder — see [Tab reordering](#tab-reordering) |
@@ -369,20 +377,22 @@ When tabs exceed strip space:
 
 | Policy | Behaviour |
 |--------|-----------|
-| `OverflowPolicy::Truncate` (default) | Show tabs from the start; hidden tabs omitted; `…` at the clipped edge |
-| `OverflowPolicy::Scroll` | Sliding window from [`TabNavState::scroll_offset`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#structfield.scroll_offset); `‹` / `›` when more tabs exist off-screen |
+| `OverflowPolicy::Scroll` (default) | Sliding window from [`TabNavState::scroll_offset`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#structfield.scroll_offset); `⯇` / `⯈` (horizontal) or `⯅` / `⯆` (vertical) on the first/last visible tab when more tabs exist off-screen — no extra baseline columns |
+| `OverflowPolicy::Truncate` | Show tabs from the start; hidden tabs omitted; optional `…` at the clipped baseline edge |
 
 ```rust
 use ratatui::layout::Rect;
 use ratatui_comfy_tabs::{OverflowPolicy, TabNav, TabNavState, TabDirection};
 use ratatui_core::widgets::StatefulWidget;
 
-let nav = TabNav::new(&["A", "B", "C", "D", "E"], 0).overflow(OverflowPolicy::Scroll);
+let nav = TabNav::new(&["A", "B", "C", "D", "E"], 0); // Scroll by default
 let mut state = TabNavState::new(4);
 state.ensure_selected_visible(&nav, Rect::new(0, 0, 24, 3));
 // render with StatefulWidget::render(nav, area, buf, &mut state);
 state.select_direction(TabDirection::Previous, 5);
 ```
+
+Use `.overflow(OverflowPolicy::Truncate)` when you prefer omitted tabs over a scroll window.
 
 Use [`TabAxis::Decrease`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) / [`TabAxis::Increase`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) to map arrow keys by orientation (`Decrease` → previous tab, `Increase` → next).
 
@@ -505,6 +515,7 @@ cargo run --example demo
 | `I`                | Toggle active-tab indicator                    |
 | `B`                | Toggle `tab_border::Rnd` / `Sqr` borders       |
 | `1`                | Cycle padding preset (`default` / alt presets) |
+| `P`                | Cycle horizontal/vertical position and tab bar alignment |
 | `2`                | Cycle tab bar end (`none` / `sqr` / `rnd`)     |
 | `C`                | Toggle all-caps tab labels                     |
 | `O`                | Toggle overflow (`truncate` / `scroll`)        |

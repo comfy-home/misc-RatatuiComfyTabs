@@ -179,34 +179,38 @@ impl TabNavState {
         }
     }
 
-    /// Adjusts [`scroll_offset`](Self::scroll_offset) so [`selected`](Self::selected) is visible.
+    /// Adjusts [`scroll_offset`](Self::scroll_offset) so [`selected`](Self::selected) is visible,
+    /// and scrolls back toward the start when extra space allows earlier tabs to reappear.
     pub fn ensure_selected_visible(&mut self, nav: &TabNav<'_>, area: Rect) {
         if nav.tabs.is_empty() || nav.overflow != OverflowPolicy::Scroll {
             return;
         }
 
-        if compute_viewport(nav, area, self.scroll_offset)
-            .entries
-            .iter()
-            .any(|entry| entry.index == self.selected)
-        {
-            return;
-        }
-
         if self.selected < self.scroll_offset {
             self.scroll_offset = self.selected;
-            return;
+        } else {
+            while self.scroll_offset < nav.tabs.len() {
+                if compute_viewport(nav, area, self.scroll_offset)
+                    .entries
+                    .iter()
+                    .any(|entry| entry.index == self.selected)
+                {
+                    break;
+                }
+                self.scroll_offset += 1;
+            }
         }
 
-        while self.scroll_offset < nav.tabs.len() {
-            if compute_viewport(nav, area, self.scroll_offset)
+        while self.scroll_offset > 0 {
+            if compute_viewport(nav, area, self.scroll_offset - 1)
                 .entries
                 .iter()
                 .any(|entry| entry.index == self.selected)
             {
+                self.scroll_offset -= 1;
+            } else {
                 break;
             }
-            self.scroll_offset += 1;
         }
     }
 
