@@ -42,11 +42,11 @@ use crate::reorder::can_drag_index;
 ///
 /// ## Overflow
 ///
-/// Default [`OverflowPolicy::Truncate`] omits tabs that do not fit. [`OverflowPolicy::Scroll`]
-/// renders a sliding window driven by [`TabNavState::scroll_offset`]. Scroll overflow is marked
-/// with `⯇` / `⯈` (horizontal) or `⯅` / `⯆` (vertical) inside the first/last visible tab.
-/// Truncate mode may show `…` on the baseline when [`overflow_affordance`](TabNav::overflow_affordance)
-/// is enabled.
+/// Default [`OverflowPolicy::Scroll`] renders a sliding window driven by
+/// [`TabNavState::scroll_offset`]. Scroll overflow is marked with `⯇` / `⯈` (horizontal) or
+/// `⯅` / `⯆` (vertical) inside the first/last visible tab. Use [`OverflowPolicy::Truncate`]
+/// to omit tabs that do not fit. Truncate mode may show `…` on the baseline when
+/// [`overflow_affordance`](TabNav::overflow_affordance) is enabled.
 ///
 /// ## Stateful rendering
 ///
@@ -133,7 +133,7 @@ impl<'a> TabNav<'a> {
             indicator_explicit: false,
             border_set: crate::tab_border::Rnd,
             tab_sizes: None,
-            overflow: OverflowPolicy::Truncate,
+            overflow: OverflowPolicy::Scroll,
             scroll_offset: 0,
             overflow_affordance: true,
             mouse_wheel: true,
@@ -250,7 +250,7 @@ impl<'a> TabNav<'a> {
         self
     }
 
-    /// Overflow behaviour when tabs exceed strip space. Default: [`OverflowPolicy::Truncate`].
+    /// Overflow behaviour when tabs exceed strip space. Default: [`OverflowPolicy::Scroll`].
     pub fn overflow(mut self, policy: OverflowPolicy) -> Self {
         self.overflow = policy;
         self
