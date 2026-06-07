@@ -617,13 +617,47 @@ fn vertical_tab_trailing_junction(last_visible_active: bool, opens_right: bool) 
 }
 
 fn vertical_margin_trailing_cap(end_style: TabBarEnd, opens_right: bool) -> Option<&'static str> {
-    match (end_style, opens_right) {
-        (TabBarEnd::Sqr, true) => Some("└"),
-        (TabBarEnd::Rnd, true) => Some("╰"),
-        (TabBarEnd::Sqr, false) => Some("┘"),
-        (TabBarEnd::Rnd, false) => Some("╯"),
-        (TabBarEnd::NoEnd, _) => None,
+    let cap = match (end_style, opens_right) {
+        (TabBarEnd::Sqr, true) => "└",
+        (TabBarEnd::Rnd, true) => "╰",
+        (TabBarEnd::Sqr, false) => "┘",
+        (TabBarEnd::Rnd, false) => "╯",
+        (TabBarEnd::NoEnd, _) => return None,
+    };
+    Some(cap)
+}
+
+fn mirror_cap_for_vertical_rail(symbol: &'static str, opens_right: bool) -> &'static str {
+    if opens_right {
+        symbol
+    } else {
+        mirror_cap_horizontally(symbol)
     }
+}
+
+fn vertical_tab_bar_junctions(
+    first_visible_active: bool,
+    last_visible_active: bool,
+    opens_right: bool,
+) -> (&'static str, &'static str) {
+    let leading = vertical_tab_leading_junction(first_visible_active, true);
+    let trailing = vertical_tab_trailing_junction(last_visible_active, true);
+    (
+        mirror_cap_for_vertical_rail(leading, opens_right),
+        mirror_cap_for_vertical_rail(trailing, opens_right),
+    )
+}
+
+fn vertical_tab_bar_margin_caps(
+    end_style: TabBarEnd,
+    opens_right: bool,
+) -> (Option<&'static str>, Option<&'static str>) {
+    let trailing = vertical_margin_trailing_cap(end_style, true);
+    let leading = trailing.map(mirror_cap_vertically);
+    (
+        leading.map(|cap| mirror_cap_for_vertical_rail(cap, opens_right)),
+        trailing.map(|cap| mirror_cap_for_vertical_rail(cap, opens_right)),
+    )
 }
 
 fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer) {
@@ -649,14 +683,20 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
         .is_some_and(|entry| entry.index == args.selected);
 
     let exact_fit = group_start == args.content_top && group_end == args.content_bottom;
+    let cap_align = if exact_fit {
+        TabBarAlign::Start
+    } else {
+        args.align
+    };
     let trailing_in_slack = group_end < args.content_bottom;
     let leading_in_slack = group_start > args.content_top;
-    let leading_junction =
-        vertical_tab_leading_junction(first_visible_active, args.opens_right);
-    let trailing_junction =
-        vertical_tab_trailing_junction(last_visible_active, args.opens_right);
-    let margin_trailing = vertical_margin_trailing_cap(args.end_style, args.opens_right);
-    let margin_leading = margin_trailing.map(mirror_cap_vertically);
+    let (leading_junction, trailing_junction) = vertical_tab_bar_junctions(
+        first_visible_active,
+        last_visible_active,
+        args.opens_right,
+    );
+    let (margin_leading, margin_trailing) =
+        vertical_tab_bar_margin_caps(args.end_style, args.opens_right);
 
     if exact_fit {
         if let Some(first) = args.viewport.entries.first() {
@@ -672,7 +712,7 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
         return;
     }
 
-    match args.align {
+    match cap_align {
         TabBarAlign::Start => {
             if let Some(first) = args.viewport.entries.first() {
                 buf[(args.baseline_x, first.offset)]
