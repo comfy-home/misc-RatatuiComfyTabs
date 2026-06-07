@@ -345,6 +345,7 @@ fn render_vertical(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_horizontal_scroll_overflow_markers(
     left: u16,
     right: u16,
@@ -368,6 +369,7 @@ fn draw_horizontal_scroll_overflow_markers(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_vertical_scroll_overflow_markers(
     left: u16,
     top: u16,
@@ -544,11 +546,7 @@ fn mirror_cap_horizontally(symbol: &'static str) -> &'static str {
 }
 
 fn horizontal_tab_trailing_junction(last_visible_selected: bool) -> &'static str {
-    if last_visible_selected {
-        "│"
-    } else {
-        "┤"
-    }
+    if last_visible_selected { "│" } else { "┤" }
 }
 
 fn horizontal_margin_trailing_cap(end_style: TabBarEnd, opens_down: bool) -> Option<&'static str> {
@@ -685,19 +683,11 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
 }
 
 fn vertical_tab_leading_junction(first_visible_active: bool) -> &'static str {
-    if first_visible_active {
-        "─"
-    } else {
-        "┬"
-    }
+    if first_visible_active { "─" } else { "┬" }
 }
 
 fn vertical_tab_trailing_junction(last_visible_active: bool) -> &'static str {
-    if last_visible_active {
-        "─"
-    } else {
-        "┴"
-    }
+    if last_visible_active { "─" } else { "┴" }
 }
 
 fn vertical_margin_trailing_cap(end_style: TabBarEnd, opens_right: bool) -> Option<&'static str> {
@@ -771,10 +761,8 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
     };
     let trailing_in_slack = group_end < args.content_bottom;
     let leading_in_slack = group_start > args.content_top;
-    let (leading_junction, trailing_junction) = vertical_tab_bar_junctions(
-        first_visible_active,
-        last_visible_active,
-    );
+    let (leading_junction, trailing_junction) =
+        vertical_tab_bar_junctions(first_visible_active, last_visible_active);
     let (margin_leading, margin_trailing) =
         vertical_tab_bar_margin_caps(args.end_style, args.opens_right);
 
@@ -799,12 +787,10 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
                     .set_symbol(leading_junction)
                     .set_style(args.style);
             }
-            if trailing_in_slack {
-                if let Some(cap) = margin_trailing {
-                    buf[(args.baseline_x, args.content_bottom - 1)]
-                        .set_symbol(cap)
-                        .set_style(args.style);
-                }
+            if trailing_in_slack && let Some(cap) = margin_trailing {
+                buf[(args.baseline_x, args.content_bottom - 1)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
             } else if let Some(last) = args.viewport.entries.last() {
                 buf[(args.baseline_x, last.offset + last.size - 1)]
                     .set_symbol(trailing_junction)
@@ -812,28 +798,22 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
             }
         }
         TabBarAlign::Center => {
-            if leading_in_slack {
-                if let Some(cap) = margin_leading {
-                    buf[(args.baseline_x, args.content_top)]
-                        .set_symbol(cap)
-                        .set_style(args.style);
-                }
+            if leading_in_slack && let Some(cap) = margin_leading {
+                buf[(args.baseline_x, args.content_top)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
             }
-            if trailing_in_slack {
-                if let Some(cap) = margin_trailing {
-                    buf[(args.baseline_x, args.content_bottom - 1)]
-                        .set_symbol(cap)
-                        .set_style(args.style);
-                }
+            if trailing_in_slack && let Some(cap) = margin_trailing {
+                buf[(args.baseline_x, args.content_bottom - 1)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
             }
         }
         TabBarAlign::End => {
-            if leading_in_slack {
-                if let Some(cap) = margin_leading {
-                    buf[(args.baseline_x, args.content_top)]
-                        .set_symbol(cap)
-                        .set_style(args.style);
-                }
+            if leading_in_slack && let Some(cap) = margin_leading {
+                buf[(args.baseline_x, args.content_top)]
+                    .set_symbol(cap)
+                    .set_style(args.style);
             }
             if let Some(last) = args.viewport.entries.last() {
                 buf[(args.baseline_x, last.offset + last.size - 1)]
