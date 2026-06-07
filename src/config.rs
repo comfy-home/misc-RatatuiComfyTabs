@@ -177,10 +177,10 @@ pub enum VerticalPosition {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OverflowPolicy {
     /// Show tabs from the start until space runs out. Hidden tabs are omitted.
-    #[default]
     Truncate,
     /// Render a sliding window. Use [`TabNavState::scroll_offset`] (or
     /// [`TabNav::scroll_offset`] for stateless rendering) as the index of the first visible tab.
+    #[default]
     Scroll,
 }
 
