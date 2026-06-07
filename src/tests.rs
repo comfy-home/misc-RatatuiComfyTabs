@@ -11,8 +11,8 @@ use ratatui_core::style::{Color, Style};
 use ratatui_core::widgets::StatefulWidget;
 
 use crate::config::{
-    OverflowPolicy, TabBarEnd, TabMargin, TabOrientation, TabPadding, TabReorderPolicy,
-    TabWheelDirection,
+    HorizontalPosition, OverflowPolicy, TabBarAlign, TabBarEnd, TabMargin, TabOrientation,
+    TabPadding, TabReorderPolicy, TabWheelDirection, VerticalPosition,
 };
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_margin,
@@ -145,7 +145,13 @@ fn no_indicator_when_disabled() {
 
 #[test]
 fn overflow_tabs_are_omitted() {
-    let buf = render_horizontal(&["Long", "Overflow"], 0, 20);
+    let area = Rect::new(0, 0, 20, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Long", "Overflow"], 0).overflow(OverflowPolicy::Truncate),
+        area,
+        &mut buf,
+    );
     let mid_line = line_str(&buf, 1);
     assert!(mid_line.contains("Long"));
     assert!(!mid_line.contains("Overflow"));
@@ -244,6 +250,179 @@ fn horizontal_tab_bar_end_rnd_selected() {
 }
 
 #[test]
+fn horizontal_tab_bar_end_sqr_bottom_selected() {
+    let area = Rect::new(0, 0, 20, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Tab"], 0)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Sqr),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert!(top_line.starts_with('│'));
+    assert!(top_line.ends_with('┘'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_sqr_bottom_inactive_first() {
+    let area = Rect::new(0, 0, 40, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["One", "Two"], 1)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Sqr),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert!(top_line.starts_with('├'));
+    assert!(top_line.ends_with('┘'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_rnd_bottom_selected() {
+    let area = Rect::new(0, 0, 20, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Tab"], 0)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Rnd),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert!(top_line.starts_with('│'));
+    assert!(top_line.ends_with('╯'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_center_align() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('┌'));
+    assert!(bot_line.ends_with('┐'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_center_align_bottom() {
+    let area = Rect::new(0, 0, 60, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .horizontal_position(HorizontalPosition::Bottom)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let top_line = line_str(&buf, strip_top);
+    assert_eq!(top_line.chars().next(), Some('└'));
+    assert!(top_line.ends_with('┘'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_center_align_rnd_top() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .tab_bar_end(TabBarEnd::Rnd)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('╭'));
+    assert!(bot_line.ends_with('╮'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_end_align() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 1)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::End),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('┌'));
+    assert!(bot_line.ends_with('│'));
+}
+
+#[test]
+fn horizontal_tab_bar_end_end_align_last_not_selected() {
+    let area = Rect::new(0, 0, 60, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["A", "B"], 0)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::End),
+        area,
+        &mut buf,
+    );
+    let bot_line = line_str(&buf, 2);
+    assert_eq!(bot_line.chars().next(), Some('┌'));
+    assert!(bot_line.ends_with('┤'));
+}
+
+#[test]
+fn vertical_tab_bar_end_center_align() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Center);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width, 30);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let right_col = col_str(&buf, width - 1);
+    assert_eq!(right_col.chars().next(), Some('┌'));
+    assert!(right_col.ends_with('└'));
+}
+
+#[test]
+fn vertical_tab_bar_end_center_align_rnd_right_position() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::Center);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 4, 30);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let baseline_col: String = (0..area.height)
+        .map(|y| buf[(baseline_x, y)].symbol().to_string())
+        .collect();
+    assert_eq!(baseline_col.chars().next(), Some('╮'));
+    assert!(baseline_col.ends_with('╯'));
+}
+
+#[test]
 fn horizontal_tab_bar_end_rnd_inactive_first() {
     let area = Rect::new(0, 0, 40, 3);
     let mut buf = Buffer::empty(area);
@@ -281,7 +460,197 @@ fn vertical_tab_bar_end_rnd() {
     draw(nav, area, &mut buf);
     let right_col = col_str(&buf, width - 1);
     assert!(right_col.starts_with('─'));
-    assert!(right_col.ends_with('╰'));
+    assert!(right_col.ends_with('─'));
+}
+
+#[test]
+fn vertical_tab_bar_end_rnd_right_position() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd);
+    let width = nav.vertical_rail_width();
+    let height = auto_vertical_tab_height(tabs[0], TabPadding::vertical_default())
+        + auto_vertical_tab_height(tabs[1], TabPadding::vertical_default());
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let baseline_col: String = (0..height)
+        .map(|y| buf[(baseline_x, y)].symbol().to_string())
+        .collect();
+    assert!(baseline_col.starts_with('┬'));
+    assert!(baseline_col.ends_with('─'));
+}
+
+#[test]
+fn vertical_tab_bar_end_sqr_right_selected_first() {
+    let label = vertical_label("Tab");
+    let tabs = [label.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr);
+    let width = nav.vertical_rail_width();
+    let height = auto_vertical_tab_height(tabs[0], TabPadding::vertical_default());
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let baseline_col: String = (0..height)
+        .map(|y| buf[(baseline_x, y)].symbol().to_string())
+        .collect();
+    assert!(baseline_col.starts_with('─'));
+    assert!(baseline_col.ends_with('─'));
+}
+
+#[test]
+fn vertical_exact_fit_start_last_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = width - 1;
+    let last_y = height - 1;
+    assert_eq!(buf[(baseline_x, last_y)].symbol(), "┴");
+}
+
+#[test]
+fn vertical_exact_fit_start_right_position_last_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let last_y = height - 1;
+    assert_eq!(
+        buf[(baseline_x, last_y)].symbol(),
+        "┴",
+        "last tab baseline junction"
+    );
+}
+
+#[test]
+fn vertical_exact_fit_start_right_position_last_tab_selected_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let last_y = height - 1;
+    assert_eq!(buf[(baseline_x, last_y)].symbol(), "─");
+}
+
+#[test]
+fn vertical_exact_fit_end_first_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = width - 1;
+    assert_eq!(buf[(baseline_x, 0)].symbol(), "┬");
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "─");
+}
+
+#[test]
+fn vertical_exact_fit_end_right_position_first_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    assert_eq!(buf[(baseline_x, 0)].symbol(), "┬");
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "─");
+}
+
+#[test]
+fn demo_vertical_exact_height_start_right_ui_tab_inactive() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tab_refs, 4)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let height = demo_vertical_total_height(&nav);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "┴");
+}
+
+#[test]
+fn demo_vertical_exact_height_end_right_logs_tab_selected() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tab_refs, 6)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Truncate);
+    let height = demo_vertical_total_height(&nav);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    assert_eq!(buf[(baseline_x, 0)].symbol(), "┬");
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "─");
 }
 
 #[test]
@@ -377,11 +746,159 @@ fn vertical_overflow_tabs_are_omitted() {
     let pad = TabPadding::vertical_default();
     let width = auto_horizontal_tab_width(tall, pad, false);
     let height = auto_vertical_tab_height(tall, pad);
-    let buf = render_vertical(&[tall, also], 0, width, height);
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&[tall, also], 0)
+            .orientation(TabOrientation::Vertical)
+            .overflow(OverflowPolicy::Truncate),
+        area,
+        &mut buf,
+    );
     let col = col_str(&buf, 2);
 
     assert!(col.contains('A'));
     assert!(!col.contains('X'));
+}
+
+#[test]
+fn horizontal_center_aligns_tabs_in_wide_area() {
+    let tabs = ["A", "B"];
+    let nav = TabNav::new(&tabs, 0).tab_bar_align(TabBarAlign::Center);
+    let area = Rect::new(0, 0, 80, 3);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    let group_width = rects[1].x + rects[1].width - rects[0].x;
+    let expected_start = (area.width - group_width) / 2;
+    assert_eq!(rects[0].x, expected_start);
+}
+
+#[test]
+fn horizontal_end_aligns_tabs_in_wide_area() {
+    let tabs = ["A", "B"];
+    let nav = TabNav::new(&tabs, 0).tab_bar_align(TabBarAlign::End);
+    let area = Rect::new(0, 0, 80, 3);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    assert_eq!(rects[1].x + rects[1].width, area.right());
+}
+
+#[test]
+fn horizontal_end_truncate_tabs_do_not_overlap() {
+    let tabs = ["AAA", "BBB", "CCC", "DDD"];
+    let nav = TabNav::new(&tabs, 0).tab_bar_align(TabBarAlign::End);
+    let area = Rect::new(0, 0, 24, 3);
+    let rects = nav.tab_rects(area);
+
+    assert!(rects.len() >= 2);
+    for (i, left) in rects.iter().enumerate() {
+        for right in &rects[i + 1..] {
+            assert!(
+                left.x + left.width <= right.x || right.x + right.width <= left.x,
+                "tabs overlap: {left:?} {right:?}"
+            );
+        }
+    }
+    assert_eq!(
+        rects.last().unwrap().x + rects.last().unwrap().width,
+        area.right()
+    );
+}
+
+#[test]
+fn horizontal_end_scroll_renders_without_buffer_panic() {
+    let tabs = ["One", "Two", "Three", "Four", "Five"];
+    let area = Rect::new(0, 0, 28, 3);
+    let nav = TabNav::new(&tabs, 4)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Scroll);
+    let mut state = TabNavState::new(4);
+    state.ensure_selected_visible(&nav, area);
+
+    let rects = nav.tab_rects_with_scroll(area, state.scroll_offset);
+    for rect in &rects {
+        assert!(rect.x + rect.width <= area.right());
+        assert!(rect.right() <= area.right());
+    }
+
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+}
+
+#[test]
+fn vertical_end_scroll_renders_without_buffer_panic() {
+    let labels: Vec<String> = ["One", "Two", "Three", "Four", "Five"]
+        .into_iter()
+        .map(vertical_label)
+        .collect();
+    let tabs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tabs, 4)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Scroll);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width, 12);
+    let mut state = TabNavState::new(4);
+    state.ensure_selected_visible(&nav, area);
+
+    let rects = nav.tab_rects_with_scroll(area, state.scroll_offset);
+    for rect in &rects {
+        assert!(rect.y + rect.height <= area.bottom());
+        assert!(rect.bottom() <= area.bottom());
+    }
+
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+}
+
+#[test]
+fn vertical_end_truncate_tabs_do_not_overlap() {
+    let labels: Vec<String> = ["A", "B", "C", "D"]
+        .into_iter()
+        .map(vertical_label)
+        .collect();
+    let tabs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_align(TabBarAlign::End);
+    let width = nav.vertical_rail_width();
+    let tab_height = nav.auto_tab_height(0).unwrap();
+    let area = Rect::new(0, 0, width, tab_height * 2 + 1);
+    let rects = nav.tab_rects(area);
+
+    assert!(rects.len() >= 2);
+    for (i, upper) in rects.iter().enumerate() {
+        for lower in &rects[i + 1..] {
+            assert!(
+                upper.y + upper.height <= lower.y || lower.y + lower.height <= upper.y,
+                "tabs overlap: {upper:?} {lower:?}"
+            );
+        }
+    }
+    assert_eq!(
+        rects.last().unwrap().y + rects.last().unwrap().height,
+        area.bottom()
+    );
+}
+
+#[test]
+fn vertical_end_aligns_tabs_in_tall_area() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let first = first.as_str();
+    let second = second.as_str();
+    let tabs = [first, second];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_align(TabBarAlign::End);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width, 30);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    assert_eq!(rects[1].y + rects[1].height, area.bottom());
 }
 
 #[test]
@@ -414,12 +931,85 @@ fn tab_widths_override_auto_layout() {
 
 #[test]
 fn tab_rects_respect_margin_and_overflow() {
-    let nav = TabNav::new(&["Long", "Overflow"], 0).margin(TabMargin::horizontal(2, 0));
+    let nav = TabNav::new(&["Long", "Overflow"], 0)
+        .margin(TabMargin::horizontal(2, 0))
+        .overflow(OverflowPolicy::Truncate);
     let area = Rect::new(0, 0, 20, 3);
     let rects = nav.tab_rects(area);
 
     assert_eq!(rects.len(), 1);
     assert_eq!(rects[0].x, 2);
+}
+
+#[test]
+fn horizontal_bottom_strip_anchors_to_area_bottom() {
+    let tabs = ["A", "B"];
+    let nav = TabNav::new(&tabs, 0).horizontal_position(HorizontalPosition::Bottom);
+    let area = Rect::new(0, 4, 40, 7);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 2);
+    assert_eq!(rects[0].y, area.bottom() - nav.horizontal_strip_height());
+    assert_eq!(rects[0].height, nav.horizontal_strip_height());
+}
+
+#[test]
+fn vertical_right_rail_anchors_to_area_right() {
+    let label = vertical_label("Tab");
+    let tabs = [label.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 8, nav.auto_tab_height(0).unwrap() + 4);
+    let rects = nav.tab_rects(area);
+
+    assert_eq!(rects.len(), 1);
+    assert_eq!(rects[0].x, area.right() - width);
+    assert_eq!(rects[0].width, width);
+}
+
+#[test]
+fn vertical_right_active_tab_opens_left() {
+    let label = vertical_label("Tab");
+    let tabs = [label.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right);
+    let width = nav.vertical_rail_width();
+    let height = auto_vertical_tab_height(tabs[0], TabPadding::vertical_default());
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let active_col: String = (0..height)
+        .map(|y| buf[(area.right() - width, y)].symbol().to_string())
+        .collect();
+    let glyphs: Vec<char> = active_col.chars().collect();
+
+    assert_eq!(glyphs.first(), Some(&'╰'));
+    assert!(glyphs[1..glyphs.len() - 1].iter().all(|&ch| ch == ' '));
+    assert_eq!(glyphs.last(), Some(&'╭'));
+}
+
+#[test]
+fn horizontal_bottom_active_tab_opens_up() {
+    let area = Rect::new(0, 0, 30, 5);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Hi"], 0).horizontal_position(HorizontalPosition::Bottom),
+        area,
+        &mut buf,
+    );
+    let strip_top = area.bottom() - 3;
+    let strip_bottom = area.bottom() - 1;
+    let top_line = line_str(&buf, strip_top);
+    let label_line = line_str(&buf, strip_top + 1);
+    let bottom_line = line_str(&buf, strip_bottom);
+
+    assert!(top_line.starts_with('╮'));
+    assert!(label_line.contains("Hi"));
+    assert!(bottom_line.contains('╰'));
+    assert!(bottom_line.contains('╯'));
 }
 
 #[test]
@@ -465,13 +1055,417 @@ fn scroll_mode_shows_later_tabs() {
     assert!(mid_line.contains("Three") || mid_line.contains("Four"));
 }
 
+const DEMO_TABS: [&str; 7] = [
+    "Overview", "Nodes", "Network", "Content", "UI", "Config", "Logs",
+];
+
+fn demo_nav(selected: usize, end: TabBarEnd, align: TabBarAlign) -> TabNav<'static> {
+    TabNav::new(&DEMO_TABS, selected)
+        .tab_bar_end(end)
+        .tab_bar_align(align)
+}
+
+fn demo_total_width(nav: &TabNav<'_>) -> u16 {
+    (0..nav.tabs.len())
+        .map(|index| nav.auto_tab_width(index).unwrap())
+        .sum()
+}
+
+fn demo_vertical_total_height(nav: &TabNav<'_>) -> u16 {
+    (0..nav.tabs.len())
+        .map(|index| nav.auto_tab_height(index).unwrap())
+        .sum()
+}
+
+fn demo_vertical_labels() -> Vec<String> {
+    DEMO_TABS
+        .iter()
+        .map(|label| vertical_label(label))
+        .collect()
+}
+
+#[test]
+fn demo_exact_width_95_start_sqr_end_caps() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav);
+    assert_eq!(width, 95);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(
+        buf[(0, baseline_y)].symbol(),
+        "│",
+        "leading cap at width {width}"
+    );
+    assert_eq!(
+        buf[(width - 1, baseline_y)].symbol(),
+        "┤",
+        "trailing junction at width {width}"
+    );
+}
+
+#[test]
+fn demo_exact_width_95_start_sqr_last_tab_selected() {
+    let nav = demo_nav(6, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(width - 1, 2)].symbol(), "│");
+}
+
+#[test]
+fn demo_exact_width_96_start_sqr_end_caps() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav) + 1;
+    assert_eq!(width, 96);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(buf[(0, baseline_y)].symbol(), "│");
+    assert_eq!(buf[(width - 1, baseline_y)].symbol(), "┐");
+}
+
+#[test]
+fn demo_exact_width_96_start_sqr_trailing_junction() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Start);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(buf[(width - 2, baseline_y)].symbol(), "┴");
+    assert_eq!(buf[(width - 1, baseline_y)].symbol(), "┐");
+}
+
+#[test]
+fn demo_exact_width_95_end_align_sqr_trailing_cap() {
+    let nav = demo_nav(1, TabBarEnd::Sqr, TabBarAlign::End);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "├");
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
+}
+
+#[test]
+fn demo_exact_width_96_end_align_sqr_trailing_cap() {
+    let nav = demo_nav(1, TabBarEnd::Sqr, TabBarAlign::End);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "┌");
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
+}
+
+#[test]
+fn demo_exact_width_95_center_sqr_trailing_cap() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Center);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "│");
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┤");
+}
+
+#[test]
+fn demo_exact_width_96_center_sqr_trailing_cap() {
+    let nav = demo_nav(0, TabBarEnd::Sqr, TabBarAlign::Center);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(
+        buf[(0, baseline_y)].symbol(),
+        "│",
+        "first tab selected: leading junction not margin cap"
+    );
+    assert_eq!(buf[(width - 2, baseline_y)].symbol(), "┴");
+    assert_eq!(buf[(width - 1, baseline_y)].symbol(), "┐");
+}
+
+#[test]
+fn demo_exact_width_96_center_sqr_first_tab_inactive() {
+    let nav = demo_nav(1, TabBarEnd::Sqr, TabBarAlign::Center);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "├");
+}
+
+#[test]
+fn demo_exact_width_96_center_rnd_first_tab_active() {
+    let nav = demo_nav(0, TabBarEnd::Rnd, TabBarAlign::Center);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "│");
+}
+
+#[test]
+fn demo_exact_width_96_center_bottom_first_tab_inactive() {
+    let nav = demo_nav(1, TabBarEnd::Sqr, TabBarAlign::Center)
+        .horizontal_position(HorizontalPosition::Bottom);
+    let width = demo_total_width(&nav) + 1;
+    let area = Rect::new(0, 0, width, 5);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = area.bottom() - 3;
+    assert_eq!(buf[(0, baseline_y)].symbol(), "├");
+}
+
+#[test]
+fn demo_vertical_center_uneven_slack_first_tab_junctions() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tab_refs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Center);
+    let width = nav.vertical_rail_width();
+    let edge_height = demo_vertical_total_height(&nav) + 1;
+    for (height, selected, expected) in [(edge_height, 0, "─"), (edge_height, 1, "┬")] {
+        let nav = TabNav::new(&tab_refs, selected)
+            .orientation(TabOrientation::Vertical)
+            .tab_bar_end(TabBarEnd::Sqr)
+            .tab_bar_align(TabBarAlign::Center);
+        let area = Rect::new(0, 0, width, height);
+        let viewport = compute_viewport(&nav, area, 0);
+        let first_y = viewport
+            .entries
+            .first()
+            .map(|entry| entry.offset)
+            .unwrap_or(0);
+        assert_eq!(first_y, area.y, "edge case tabs flush to content top");
+        let mut buf = Buffer::empty(area);
+        draw(nav, area, &mut buf);
+        let baseline_x = width - 1;
+        assert_eq!(
+            buf[(baseline_x, first_y)].symbol(),
+            expected,
+            "height {height}, selected {selected}"
+        );
+    }
+}
+
+#[test]
+fn demo_vertical_center_uneven_slack_right_position() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tab_refs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::Center);
+    let width = nav.vertical_rail_width();
+    let height = demo_vertical_total_height(&nav) + 1;
+    let area = Rect::new(0, 0, width + 4, height);
+    let viewport = compute_viewport(&nav, area, 0);
+    let first_y = viewport
+        .entries
+        .first()
+        .map(|entry| entry.offset)
+        .unwrap_or(0);
+    assert_eq!(first_y, area.y);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    assert_eq!(buf[(baseline_x, first_y)].symbol(), "─");
+}
+
+#[test]
+fn demo_exact_width_97_center_sqr_bilateral_slack() {
+    let nav = demo_nav(1, TabBarEnd::Sqr, TabBarAlign::Center);
+    let width = demo_total_width(&nav) + 2;
+    let area = Rect::new(0, 0, width, 3);
+    let viewport = compute_viewport(&nav, area, 0);
+    let first_x = viewport
+        .entries
+        .first()
+        .map(|entry| entry.offset)
+        .unwrap_or(0);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "┌", "margin cap in leading slack");
+    assert_eq!(
+        buf[(first_x, 2)].symbol(),
+        "┴",
+        "inactive first tab keeps tee junction when centered with bilateral slack"
+    );
+    assert_eq!(buf[(width - 1, 2)].symbol(), "┐");
+}
+
+#[test]
+fn horizontal_center_bilateral_slack_inactive_first_keeps_tee() {
+    let area = Rect::new(0, 0, 60, 3);
+    let nav = TabNav::new(&["A", "B"], 1)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Center);
+    let first_x = compute_viewport(&nav, area, 0)
+        .entries
+        .first()
+        .map(|entry| entry.offset)
+        .unwrap_or(0);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "┌");
+    assert_eq!(buf[(first_x, 2)].symbol(), "┴");
+    assert_eq!(buf[(59, 2)].symbol(), "┐");
+}
+
+#[test]
+fn horizontal_center_bilateral_slack_active_first_keeps_tab_corner() {
+    let area = Rect::new(0, 0, 120, 3);
+    let nav = TabNav::new(&["A", "B"], 0)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::Center);
+    let first_x = compute_viewport(&nav, area, 0)
+        .entries
+        .first()
+        .map(|entry| entry.offset)
+        .unwrap_or(0);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    assert_eq!(buf[(0, 2)].symbol(), "╭");
+    assert_eq!(
+        buf[(first_x, 2)].symbol(),
+        "╯",
+        "active first tab keeps open-corner junction, not TabBarEnd leading cap"
+    );
+}
+
+#[test]
+fn vertical_center_bilateral_slack_first_tab_keeps_tab_junctions() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let area = Rect::new(0, 0, 8, 40);
+    let baseline_x = TabNav::new(&tab_refs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_rail_width()
+        - 1;
+    let first_y = compute_viewport(
+        &TabNav::new(&tab_refs, 0)
+            .orientation(TabOrientation::Vertical)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        0,
+    )
+    .entries
+    .first()
+    .map(|entry| entry.offset)
+    .unwrap_or(0);
+
+    let mut active = Buffer::empty(area);
+    draw(
+        TabNav::new(&tab_refs, 0)
+            .orientation(TabOrientation::Vertical)
+            .tab_bar_end(TabBarEnd::Rnd)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut active,
+    );
+    assert_eq!(active[(baseline_x, 0)].symbol(), "╭");
+    assert_eq!(
+        active[(baseline_x, first_y)].symbol(),
+        "╯",
+        "active first tab keeps open-corner junction"
+    );
+
+    let mut inactive = Buffer::empty(area);
+    draw(
+        TabNav::new(&tab_refs, 1)
+            .orientation(TabOrientation::Vertical)
+            .tab_bar_end(TabBarEnd::Rnd)
+            .tab_bar_align(TabBarAlign::Center),
+        area,
+        &mut inactive,
+    );
+    assert_eq!(
+        inactive[(baseline_x, first_y)].symbol(),
+        "┤",
+        "inactive first tab keeps rail junction, not TabBarEnd tee"
+    );
+}
+
+#[test]
+fn demo_exact_width_95_start_rnd_end_caps() {
+    let nav = demo_nav(0, TabBarEnd::Rnd, TabBarAlign::Start);
+    let width = demo_total_width(&nav);
+    let area = Rect::new(0, 0, width, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_y = 2;
+    assert_eq!(buf[(0, baseline_y)].symbol(), "│");
+    assert_eq!(buf[(width - 1, baseline_y)].symbol(), "┤");
+}
+
 #[test]
 fn truncate_shows_overflow_affordance() {
     let area = Rect::new(0, 0, 20, 3);
     let mut buf = Buffer::empty(area);
-    draw(TabNav::new(&["Long", "Overflow"], 0), area, &mut buf);
+    draw(
+        TabNav::new(&["Long", "Overflow"], 0).overflow(OverflowPolicy::Truncate),
+        area,
+        &mut buf,
+    );
     let bot_line = line_str(&buf, 2);
-    assert!(bot_line.contains('…') || bot_line.contains('›'));
+    assert!(bot_line.contains('…'));
+}
+
+#[test]
+fn scroll_start_align_keeps_first_visible_tab_at_flow_start() {
+    let tabs = ["One", "Two", "Three", "Four", "Five"];
+    let nav = TabNav::new(&tabs, 2)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Scroll);
+    let narrow = Rect::new(0, 0, 28, 3);
+    let mut state = TabNavState::new(2);
+    state.ensure_selected_visible(&nav, narrow);
+    let viewport = compute_viewport(&nav, narrow, state.scroll_offset);
+    let flow_start = narrow.x;
+    assert_eq!(viewport.entries.first().unwrap().offset, flow_start);
+}
+
+#[test]
+fn scroll_expands_restores_earlier_tabs() {
+    let tabs = ["A", "B", "C", "D", "E"];
+    let nav = TabNav::new(&tabs, 4).overflow(OverflowPolicy::Scroll);
+    let narrow = Rect::new(0, 0, 24, 3);
+    let wide = Rect::new(0, 0, 80, 3);
+    let mut state = TabNavState::new(4);
+    state.ensure_selected_visible(&nav, narrow);
+    assert!(state.scroll_offset > 0);
+    state.ensure_selected_visible(&nav, wide);
+    assert_eq!(state.scroll_offset, 0);
+    let viewport = compute_viewport(&nav, wide, state.scroll_offset);
+    assert!(viewport.entries.iter().any(|entry| entry.index == 0));
+}
+
+#[test]
+fn scroll_shows_in_tab_overflow_markers_not_on_baseline() {
+    let tabs = ["One", "Two", "Three", "Four"];
+    let nav = TabNav::new(&tabs, 3)
+        .overflow(OverflowPolicy::Scroll)
+        .scroll_offset(1);
+    let area = Rect::new(0, 0, 28, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let label_y = 1;
+    let baseline_y = 2;
+    let bot_line = line_str(&buf, baseline_y);
+    assert!(!bot_line.contains('‹'));
+    assert!(!bot_line.contains('›'));
+    assert!(!bot_line.contains('…'));
+    assert!(line_str(&buf, label_y).contains('⯇'));
+    assert!(line_str(&buf, label_y).contains('⯈'));
 }
 
 #[test]

@@ -26,8 +26,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 use ratatui_comfy_tabs::{
-    OverflowPolicy, TabAxis, TabBarEnd, TabDirection, TabNav, TabNavState, TabOrientation,
-    TabPadding, TabReorderPolicy, TabWheelDirection, tab_border, try_reorder, vertical_label,
+    HorizontalPosition, OverflowPolicy, TabAxis, TabBarAlign, TabBarEnd, TabDirection, TabNav,
+    TabNavState, TabOrientation, TabPadding, TabReorderPolicy, TabWheelDirection, VerticalPosition,
+    tab_border, try_reorder, vertical_label,
 };
 use ratatui_core::widgets::StatefulWidget;
 use std::io::stdout;
@@ -76,6 +77,9 @@ enum PaddingPreset {
 struct App {
     tab_state: TabNavState,
     mode: DemoMode,
+    horizontal_position: HorizontalPosition,
+    vertical_position: VerticalPosition,
+    tab_bar_align: TabBarAlign,
     border_kind: BorderKind,
     show_indicator: bool,
     padding_preset: PaddingPreset,
@@ -101,6 +105,9 @@ impl Default for App {
         Self {
             tab_state: TabNavState::default(),
             mode: DemoMode::default(),
+            horizontal_position: HorizontalPosition::default(),
+            vertical_position: VerticalPosition::default(),
+            tab_bar_align: TabBarAlign::default(),
             border_kind: BorderKind::default(),
             show_indicator: false,
             padding_preset: PaddingPreset::default(),
@@ -303,6 +310,46 @@ impl App {
                     }
 
                     KeyCode::Char('p') | KeyCode::Char('P') => {
+                        match self.mode {
+                            DemoMode::Horizontal => {
+                                self.horizontal_position = match self.horizontal_position {
+                                    HorizontalPosition::Top => HorizontalPosition::Bottom,
+                                    HorizontalPosition::Bottom => HorizontalPosition::Top,
+                                };
+                                self.record_command(format!(
+                                    ".horizontal_position(HorizontalPosition::{:?});",
+                                    self.horizontal_position
+                                ));
+                            }
+                            DemoMode::Vertical => {
+                                self.vertical_position = match self.vertical_position {
+                                    VerticalPosition::Left => VerticalPosition::Right,
+                                    VerticalPosition::Right => VerticalPosition::Left,
+                                };
+                                self.record_command(format!(
+                                    ".vertical_position(VerticalPosition::{:?});",
+                                    self.vertical_position
+                                ));
+                            }
+                        }
+                        self.tab_state.clear_scroll();
+                        self.tab_state.cancel_reorder_drag();
+                    }
+
+                    KeyCode::Char('a') | KeyCode::Char('A') => {
+                        self.tab_bar_align = match self.tab_bar_align {
+                            TabBarAlign::Start => TabBarAlign::Center,
+                            TabBarAlign::Center => TabBarAlign::End,
+                            TabBarAlign::End => TabBarAlign::Start,
+                        };
+                        self.tab_state.clear_scroll();
+                        self.record_command(format!(
+                            ".tab_bar_align(TabBarAlign::{:?});",
+                            self.tab_bar_align
+                        ));
+                    }
+
+                    KeyCode::Char('r') | KeyCode::Char('R') => {
                         self.reorder_policy = match self.reorder_policy {
                             TabReorderPolicy::AllPinned => TabReorderPolicy::NonePinned,
                             TabReorderPolicy::NonePinned => TabReorderPolicy::SomePinned,
@@ -676,7 +723,10 @@ impl App {
     fn content_border_set(&self) -> border::Set<'static> {
         let mut set = self.tab_border_set();
         if self.mode == DemoMode::Vertical {
-            set.top_left = "─";
+            match self.vertical_position {
+                VerticalPosition::Left => set.top_left = "─",
+                VerticalPosition::Right => set.top_right = "─",
+            }
         }
         set
     }
@@ -724,6 +774,33 @@ impl App {
         }
     }
 
+    fn align_label(&self) -> &'static str {
+        match self.tab_bar_align {
+            TabBarAlign::Start => match self.mode {
+                DemoMode::Horizontal => "start",
+                DemoMode::Vertical => "top",
+            },
+            TabBarAlign::Center => "center",
+            TabBarAlign::End => match self.mode {
+                DemoMode::Horizontal => "end",
+                DemoMode::Vertical => "bottom",
+            },
+        }
+    }
+
+    fn position_label(&self) -> &'static str {
+        match self.mode {
+            DemoMode::Horizontal => match self.horizontal_position {
+                HorizontalPosition::Top => "top",
+                HorizontalPosition::Bottom => "bottom",
+            },
+            DemoMode::Vertical => match self.vertical_position {
+                VerticalPosition::Left => "left",
+                VerticalPosition::Right => "right",
+            },
+        }
+    }
+
     fn selected_tab_name(&self) -> &'static str {
         self.tab_order
             .get(self.tab_state.selected)
@@ -750,10 +827,17 @@ impl App {
             .reorder_policy(self.reorder_policy)
             .mouse_reorder(self.mouse_reorder);
         if self.mode == DemoMode::Vertical {
-            nav = nav.orientation(TabOrientation::Vertical);
+            nav = nav
+                .orientation(TabOrientation::Vertical)
+                .vertical_position(self.vertical_position);
+        } else {
+            nav = nav.horizontal_position(self.horizontal_position);
         }
 
-        nav = nav.tab_bar_end(self.tab_bar_end).all_caps(self.all_caps);
+        nav = nav
+            .tab_bar_end(self.tab_bar_end)
+            .tab_bar_align(self.tab_bar_align)
+            .all_caps(self.all_caps);
 
         if let Some(pad) = self.padding_for_mode() {
             nav = nav.padding(pad);
@@ -805,6 +889,8 @@ impl App {
         let wheel_label = if self.mouse_wheel { "on" } else { "off" };
         let click_label = if self.mouse_click { "on" } else { "off" };
         let reorder_label = self.reorder_policy_label();
+        let position_label = self.position_label();
+        let align_label = self.align_label();
 
         let nav = match self.mode {
             DemoMode::Horizontal => vec![key("←"), dim("/"), key("→"), dim(" tabs")],
@@ -885,6 +971,18 @@ impl App {
             ],
             vec![
                 key("P"),
+                dim(" position ("),
+                Span::styled(position_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("A"),
+                dim(" align ("),
+                Span::styled(align_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("R"),
                 dim(" reorder ("),
                 Span::styled(reorder_label, Style::new().fg(Color::DarkGray)),
                 dim(")"),
@@ -911,16 +1009,27 @@ impl App {
         wrap_footer_segments(self.shortcut_footer_segments(), width.max(1) as usize)
     }
 
-    fn content_block<'a>(&self, title: &'a str, border_color: Color, bg: Color) -> Block<'a> {
+    fn content_block<'a>(&self, _title: &'a str, border_color: Color, bg: Color) -> Block<'a> {
         let mut block = Block::default()
             .border_set(self.content_border_set())
             .border_style(Style::new().fg(border_color))
             .style(Style::new().fg(Color::White).bg(bg));
 
-        if self.mode == DemoMode::Vertical {
-            block = block.borders(Borders::TOP | Borders::RIGHT | Borders::BOTTOM);
-        } else {
-            block = block.borders(Borders::ALL).title(format!(" {} ", title));
+        match self.mode {
+            DemoMode::Vertical => {
+                let borders = match self.vertical_position {
+                    VerticalPosition::Left => Borders::TOP | Borders::RIGHT | Borders::BOTTOM,
+                    VerticalPosition::Right => Borders::TOP | Borders::LEFT | Borders::BOTTOM,
+                };
+                block = block.borders(borders);
+            }
+            DemoMode::Horizontal => {
+                let borders = match self.horizontal_position {
+                    HorizontalPosition::Top => Borders::LEFT | Borders::RIGHT | Borders::BOTTOM,
+                    HorizontalPosition::Bottom => Borders::LEFT | Borders::TOP | Borders::RIGHT,
+                };
+                block = block.borders(borders);
+            }
         }
 
         block
@@ -932,24 +1041,51 @@ impl App {
         let style = Style::new().fg(border_color);
         let border_set = self.content_border_set();
 
-        for (offset, ch) in top.chars().enumerate() {
-            let x = area.x + offset as u16;
-            if x >= area.right() {
-                break;
+        match self.vertical_position {
+            VerticalPosition::Left => {
+                for (offset, ch) in top.chars().enumerate() {
+                    let x = area.x + offset as u16;
+                    if x >= area.right() {
+                        break;
+                    }
+                    buf[(x, area.y)].set_char(ch).set_style(style);
+                }
+
+                for x in (area.x + top.chars().count() as u16)..area.right() {
+                    buf[(x, area.y)]
+                        .set_symbol(border_set.horizontal_top)
+                        .set_style(style);
+                }
+
+                if area.right() > area.x {
+                    buf[(area.right() - 1, area.y)]
+                        .set_symbol(border_set.top_right)
+                        .set_style(style);
+                }
             }
-            buf[(x, area.y)].set_char(ch).set_style(style);
-        }
+            VerticalPosition::Right => {
+                let title_len = top.chars().count() as u16;
+                let start_x = area.right().saturating_sub(title_len);
+                for (offset, ch) in top.chars().enumerate() {
+                    let x = start_x + offset as u16;
+                    if x >= area.right() {
+                        break;
+                    }
+                    buf[(x, area.y)].set_char(ch).set_style(style);
+                }
 
-        for x in (area.x + top.chars().count() as u16)..area.right() {
-            buf[(x, area.y)]
-                .set_symbol(border_set.horizontal_top)
-                .set_style(style);
-        }
+                for x in area.x..start_x {
+                    buf[(x, area.y)]
+                        .set_symbol(border_set.horizontal_top)
+                        .set_style(style);
+                }
 
-        if area.right() > area.x {
-            buf[(area.right() - 1, area.y)]
-                .set_symbol(border_set.top_right)
-                .set_style(style);
+                if area.right() > area.x {
+                    buf[(area.x, area.y)]
+                        .set_symbol(border_set.top_left)
+                        .set_style(style);
+                }
+            }
         }
     }
 
@@ -973,8 +1109,20 @@ impl App {
         let footer_height = shortcut_lines.len().clamp(1, 8) as u16;
         let shortcuts = Paragraph::new(Text::from(shortcut_lines)).alignment(Alignment::Center);
 
+        let body_inner = if self.mode == DemoMode::Horizontal {
+            let [title_area, body_area] =
+                Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(inner);
+            Line::from(format!(" {} ", self.selected_tab_name()))
+                .style(Style::new().fg(border_color))
+                .render(title_area, buf);
+            body_area
+        } else {
+            inner
+        };
+
         let [main, footer] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(footer_height)]).areas(inner);
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(footer_height)])
+                .areas(body_inner);
 
         let [top_spacer, command_area, status_area, bottom_spacer] = Layout::vertical([
             Constraint::Fill(1),
@@ -1032,8 +1180,20 @@ impl App {
         let strip_height = self
             .prepare_tab_nav(&labels, &mut pin_buf)
             .horizontal_strip_height();
-        let [tabs, content] =
-            Layout::vertical([Constraint::Length(strip_height), Constraint::Fill(1)]).areas(area);
+        let (tabs, content) = match self.horizontal_position {
+            HorizontalPosition::Top => {
+                let [tabs, content] =
+                    Layout::vertical([Constraint::Length(strip_height), Constraint::Fill(1)])
+                        .areas(area);
+                (tabs, content)
+            }
+            HorizontalPosition::Bottom => {
+                let [content, tabs] =
+                    Layout::vertical([Constraint::Fill(1), Constraint::Length(strip_height)])
+                        .areas(area);
+                (tabs, content)
+            }
+        };
 
         let tab_area = if self.narrow_tabs {
             Rect {
@@ -1077,8 +1237,20 @@ impl App {
 
     fn render_vertical(&mut self, frame: &mut Frame, area: Rect, bg: Color, border_color: Color) {
         let rail_width = self.vertical_rail_width();
-        let [tabs, content] =
-            Layout::horizontal([Constraint::Length(rail_width), Constraint::Fill(1)]).areas(area);
+        let (tabs, content) = match self.vertical_position {
+            VerticalPosition::Left => {
+                let [tabs, content] =
+                    Layout::horizontal([Constraint::Length(rail_width), Constraint::Fill(1)])
+                        .areas(area);
+                (tabs, content)
+            }
+            VerticalPosition::Right => {
+                let [content, tabs] =
+                    Layout::horizontal([Constraint::Fill(1), Constraint::Length(rail_width)])
+                        .areas(area);
+                (tabs, content)
+            }
+        };
 
         let tab_area = if self.narrow_tabs {
             Rect {

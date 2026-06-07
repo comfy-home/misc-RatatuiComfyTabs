@@ -1,7 +1,8 @@
 [package]
 name = "ratatui-comfy-tabs"
 authors = ["ComfyHome™ <dev@comfyhome.io>"]
-version = "0.4.4"
+version = "0.5.9"
+rust-version = "1.88"
 edition = "2024"
 description = "An advanced tab navigation widget for Ratatui."
 license-file = "LICENSE.md"
@@ -10,7 +11,6 @@ categories = ["command-line-interface"]
 homepage = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
 repository = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
 readme = "README.md"
-rust-version = "1.95"
 exclude = ["assets/*.gif"]
 
 [package.metadata]

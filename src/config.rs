@@ -58,16 +58,23 @@ pub enum TabReorderPolicy {
 }
 
 /// End-cap style for the tab strip baseline.
+///
+/// Cap glyphs depend on strip position and [`TabBarAlign`]:
+///
+/// - [`TabBarAlign::Start`]: leading/trailing caps at the flow-axis margins; horizontal
+///   leading stays `├`/`│` with only the trailing cap flipping for [`HorizontalPosition::Bottom`].
+/// - [`TabBarAlign::Center`]: leading cap mirrors the start trailing cap horizontally
+///   (`┐`→`┌` / `┘`→`└`, or rounded equivalents); trailing unchanged. Vertical center
+///   caps sit on the margin only, not on the first tab.
+/// - [`TabBarAlign::End`]: leading/trailing caps swap and mirror relative to [`TabBarAlign::Start`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TabBarEnd {
     /// Continuous baseline with no corner caps.
     #[default]
     NoEnd,
-    /// Square caps: horizontal `├`/`┐` (or `│`/`┐` when the first visible tab is selected);
-    /// vertical top junction `┬`/`─` and bottom `└`.
+    /// Square end caps (see enum docs for position-specific glyphs).
     Sqr,
-    /// Rounded caps: horizontal `├`/`╮` (or `│`/`╮` when the first visible tab is selected);
-    /// vertical top junction `┬`/`─` and bottom `╰`.
+    /// Rounded end caps (see enum docs for position-specific glyphs).
     Rnd,
 }
 
@@ -128,14 +135,52 @@ pub enum TabOrientation {
     Vertical,
 }
 
+/// Horizontal strip placement relative to adjacent content.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum HorizontalPosition {
+    /// Strip along the top edge; active tab opens downward (default).
+    #[default]
+    Top,
+    /// Strip along the bottom edge; active tab opens upward.
+    Bottom,
+}
+
+/// Tab strip alignment within its allocated flow axis.
+///
+/// Horizontal mode: [`Start`](Self::Start) = left, [`Center`](Self::Center) = centred,
+/// [`End`](Self::End) = right.
+///
+/// Vertical mode: [`Start`](Self::Start) = top, [`Center`](Self::Center) = centred,
+/// [`End`](Self::End) = bottom.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TabBarAlign {
+    /// Leading edge of the flow axis (left / top).
+    #[default]
+    Start,
+    /// Centred when the strip is narrower than the allocated area.
+    Center,
+    /// Trailing edge of the flow axis (right / bottom).
+    End,
+}
+
+/// Vertical rail placement relative to adjacent content.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum VerticalPosition {
+    /// Rail along the left edge; active tab opens right (default).
+    #[default]
+    Left,
+    /// Rail along the right edge; active tab opens left.
+    Right,
+}
+
 /// Behaviour when tabs exceed available strip space.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OverflowPolicy {
     /// Show tabs from the start until space runs out. Hidden tabs are omitted.
-    #[default]
     Truncate,
     /// Render a sliding window. Use [`TabNavState::scroll_offset`] (or
     /// [`TabNav::scroll_offset`] for stateless rendering) as the index of the first visible tab.
+    #[default]
     Scroll,
 }
 
