@@ -145,7 +145,13 @@ fn no_indicator_when_disabled() {
 
 #[test]
 fn overflow_tabs_are_omitted() {
-    let buf = render_horizontal(&["Long", "Overflow"], 0, 20);
+    let area = Rect::new(0, 0, 20, 3);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&["Long", "Overflow"], 0).overflow(OverflowPolicy::Truncate),
+        area,
+        &mut buf,
+    );
     let mid_line = line_str(&buf, 1);
     assert!(mid_line.contains("Long"));
     assert!(!mid_line.contains("Overflow"));
@@ -740,7 +746,15 @@ fn vertical_overflow_tabs_are_omitted() {
     let pad = TabPadding::vertical_default();
     let width = auto_horizontal_tab_width(tall, pad, false);
     let height = auto_vertical_tab_height(tall, pad);
-    let buf = render_vertical(&[tall, also], 0, width, height);
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    draw(
+        TabNav::new(&[tall, also], 0)
+            .orientation(TabOrientation::Vertical)
+            .overflow(OverflowPolicy::Truncate),
+        area,
+        &mut buf,
+    );
     let col = col_str(&buf, 2);
 
     assert!(col.contains('A'));
@@ -917,7 +931,9 @@ fn tab_widths_override_auto_layout() {
 
 #[test]
 fn tab_rects_respect_margin_and_overflow() {
-    let nav = TabNav::new(&["Long", "Overflow"], 0).margin(TabMargin::horizontal(2, 0));
+    let nav = TabNav::new(&["Long", "Overflow"], 0)
+        .margin(TabMargin::horizontal(2, 0))
+        .overflow(OverflowPolicy::Truncate);
     let area = Rect::new(0, 0, 20, 3);
     let rects = nav.tab_rects(area);
 
@@ -1062,7 +1078,10 @@ fn demo_vertical_total_height(nav: &TabNav<'_>) -> u16 {
 }
 
 fn demo_vertical_labels() -> Vec<String> {
-    DEMO_TABS.iter().map(|label| vertical_label(label)).collect()
+    DEMO_TABS
+        .iter()
+        .map(|label| vertical_label(label))
+        .collect()
 }
 
 #[test]
@@ -1181,7 +1200,11 @@ fn demo_exact_width_95_start_rnd_end_caps() {
 fn truncate_shows_overflow_affordance() {
     let area = Rect::new(0, 0, 20, 3);
     let mut buf = Buffer::empty(area);
-    draw(TabNav::new(&["Long", "Overflow"], 0), area, &mut buf);
+    draw(
+        TabNav::new(&["Long", "Overflow"], 0).overflow(OverflowPolicy::Truncate),
+        area,
+        &mut buf,
+    );
     let bot_line = line_str(&buf, 2);
     assert!(bot_line.contains('…'));
 }
