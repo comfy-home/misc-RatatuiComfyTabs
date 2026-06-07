@@ -43,8 +43,9 @@ use crate::reorder::can_drag_index;
 /// ## Overflow
 ///
 /// Default [`OverflowPolicy::Truncate`] omits tabs that do not fit. [`OverflowPolicy::Scroll`]
-/// renders a sliding window driven by [`TabNavState::scroll_offset`]. Optional edge affordances
-/// (`‹` / `›` / `…`) mark clipped tabs when [`overflow_affordance`](TabNav::overflow_affordance)
+/// renders a sliding window driven by [`TabNavState::scroll_offset`]. Scroll overflow is marked
+/// with `⯇` / `⯈` (horizontal) or `⯅` / `⯆` (vertical) inside the first/last visible tab.
+/// Truncate mode may show `…` on the baseline when [`overflow_affordance`](TabNav::overflow_affordance)
 /// is enabled.
 ///
 /// ## Stateful rendering
