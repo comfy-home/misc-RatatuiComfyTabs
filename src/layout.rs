@@ -131,10 +131,7 @@ impl TabViewport {
     pub(crate) fn group_bounds(&self) -> Option<(u16, u16)> {
         let first = self.entries.first()?;
         let last = self.entries.last()?;
-        Some((
-            first.offset,
-            last.offset.saturating_add(last.size),
-        ))
+        Some((first.offset, last.offset.saturating_add(last.size)))
     }
 }
 
@@ -326,14 +323,13 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
         let group_start = first.offset;
         let group_end = last.offset.saturating_add(last.size);
         let align_start = content_start;
-        let align_end = if nav.overflow == OverflowPolicy::Truncate
-            && clipped_after
-            && nav.overflow_affordance
-        {
-            flow_end.saturating_sub(1)
-        } else {
-            flow_end
-        };
+        let align_end =
+            if nav.overflow == OverflowPolicy::Truncate && clipped_after && nav.overflow_affordance
+            {
+                flow_end.saturating_sub(1)
+            } else {
+                flow_end
+            };
         let shift = align_shift(
             nav.tab_bar_align,
             align_start,
@@ -348,8 +344,7 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
         }
     }
 
-    let truncate_affordance =
-        nav.overflow == OverflowPolicy::Truncate && nav.overflow_affordance;
+    let truncate_affordance = nav.overflow == OverflowPolicy::Truncate && nav.overflow_affordance;
     let before_affordance_at = (clipped_before && truncate_affordance).then_some(flow_start);
     let after_affordance_at = if clipped_after && truncate_affordance {
         Some(flow_end.saturating_sub(1))
