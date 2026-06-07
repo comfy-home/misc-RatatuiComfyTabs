@@ -1183,7 +1183,55 @@ fn truncate_shows_overflow_affordance() {
     let mut buf = Buffer::empty(area);
     draw(TabNav::new(&["Long", "Overflow"], 0), area, &mut buf);
     let bot_line = line_str(&buf, 2);
-    assert!(bot_line.contains('…') || bot_line.contains('›'));
+    assert!(bot_line.contains('…'));
+}
+
+#[test]
+fn scroll_start_align_keeps_first_visible_tab_at_flow_start() {
+    let tabs = ["One", "Two", "Three", "Four", "Five"];
+    let nav = TabNav::new(&tabs, 2)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Scroll);
+    let narrow = Rect::new(0, 0, 28, 3);
+    let mut state = TabNavState::new(2);
+    state.ensure_selected_visible(&nav, narrow);
+    let viewport = compute_viewport(&nav, narrow, state.scroll_offset);
+    let flow_start = narrow.x;
+    assert_eq!(viewport.entries.first().unwrap().offset, flow_start);
+}
+
+#[test]
+fn scroll_expands_restores_earlier_tabs() {
+    let tabs = ["A", "B", "C", "D", "E"];
+    let nav = TabNav::new(&tabs, 4).overflow(OverflowPolicy::Scroll);
+    let narrow = Rect::new(0, 0, 24, 3);
+    let wide = Rect::new(0, 0, 80, 3);
+    let mut state = TabNavState::new(4);
+    state.ensure_selected_visible(&nav, narrow);
+    assert!(state.scroll_offset > 0);
+    state.ensure_selected_visible(&nav, wide);
+    assert_eq!(state.scroll_offset, 0);
+    let viewport = compute_viewport(&nav, wide, state.scroll_offset);
+    assert!(viewport.entries.iter().any(|entry| entry.index == 0));
+}
+
+#[test]
+fn scroll_shows_in_tab_overflow_markers_not_on_baseline() {
+    let tabs = ["One", "Two", "Three", "Four"];
+    let nav = TabNav::new(&tabs, 3)
+        .overflow(OverflowPolicy::Scroll)
+        .scroll_offset(1);
+    let area = Rect::new(0, 0, 28, 3);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let label_y = 1;
+    let baseline_y = 2;
+    let bot_line = line_str(&buf, baseline_y);
+    assert!(!bot_line.contains('‹'));
+    assert!(!bot_line.contains('›'));
+    assert!(!bot_line.contains('…'));
+    assert!(line_str(&buf, label_y).contains('⯇'));
+    assert!(line_str(&buf, label_y).contains('⯈'));
 }
 
 #[test]
