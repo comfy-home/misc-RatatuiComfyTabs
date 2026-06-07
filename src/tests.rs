@@ -390,8 +390,30 @@ fn vertical_tab_bar_end_center_align() {
     let mut buf = Buffer::empty(area);
     draw(nav, area, &mut buf);
     let right_col = col_str(&buf, width - 1);
-    assert_eq!(right_col.chars().next(), Some('┘'));
+    assert_eq!(right_col.chars().next(), Some('┌'));
     assert!(right_col.ends_with('└'));
+}
+
+#[test]
+fn vertical_tab_bar_end_center_align_rnd_right_position() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::Center);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 4, 30);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let baseline_col: String = (0..area.height)
+        .map(|y| buf[(baseline_x, y)].symbol().to_string())
+        .collect();
+    assert_eq!(baseline_col.chars().next(), Some('╮'));
+    assert!(baseline_col.ends_with('╯'));
 }
 
 #[test]
@@ -432,7 +454,7 @@ fn vertical_tab_bar_end_rnd() {
     draw(nav, area, &mut buf);
     let right_col = col_str(&buf, width - 1);
     assert!(right_col.starts_with('─'));
-    assert!(right_col.ends_with('╰'));
+    assert!(right_col.ends_with('─'));
 }
 
 #[test]
@@ -454,8 +476,8 @@ fn vertical_tab_bar_end_rnd_right_position() {
     let baseline_col: String = (0..height)
         .map(|y| buf[(baseline_x, y)].symbol().to_string())
         .collect();
-    assert!(baseline_col.starts_with('┴'));
-    assert!(baseline_col.ends_with('╯'));
+    assert!(baseline_col.starts_with('┬'));
+    assert!(baseline_col.ends_with('─'));
 }
 
 #[test]
@@ -476,7 +498,153 @@ fn vertical_tab_bar_end_sqr_right_selected_first() {
         .map(|y| buf[(baseline_x, y)].symbol().to_string())
         .collect();
     assert!(baseline_col.starts_with('─'));
-    assert!(baseline_col.ends_with('┘'));
+    assert!(baseline_col.ends_with('─'));
+}
+
+#[test]
+fn vertical_exact_fit_start_last_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = width - 1;
+    let last_y = height - 1;
+    assert_eq!(buf[(baseline_x, last_y)].symbol(), "┴");
+}
+
+#[test]
+fn vertical_exact_fit_start_right_position_last_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let last_y = height - 1;
+    assert_eq!(
+        buf[(baseline_x, last_y)].symbol(),
+        "┴",
+        "last tab baseline junction"
+    );
+}
+
+#[test]
+fn vertical_exact_fit_start_right_position_last_tab_selected_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    let last_y = height - 1;
+    assert_eq!(buf[(baseline_x, last_y)].symbol(), "─");
+}
+
+#[test]
+fn vertical_exact_fit_end_first_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = width - 1;
+    assert_eq!(buf[(baseline_x, 0)].symbol(), "┬");
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "─");
+}
+
+#[test]
+fn vertical_exact_fit_end_right_position_first_tab_inactive_junction() {
+    let first = vertical_label("One");
+    let second = vertical_label("Two");
+    let tabs = [first.as_str(), second.as_str()];
+    let nav = TabNav::new(&tabs, 1)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Truncate);
+    let width = nav.vertical_rail_width();
+    let height = nav.auto_tab_height(0).unwrap() + nav.auto_tab_height(1).unwrap();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    assert_eq!(buf[(baseline_x, 0)].symbol(), "┬");
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "─");
+}
+
+#[test]
+fn demo_vertical_exact_height_start_right_ui_tab_inactive() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tab_refs, 4)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Sqr)
+        .tab_bar_align(TabBarAlign::Start)
+        .overflow(OverflowPolicy::Truncate);
+    let height = demo_vertical_total_height(&nav);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "┴");
+}
+
+#[test]
+fn demo_vertical_exact_height_end_right_logs_tab_selected() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tab_refs, 6)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Right)
+        .tab_bar_end(TabBarEnd::Rnd)
+        .tab_bar_align(TabBarAlign::End)
+        .overflow(OverflowPolicy::Truncate);
+    let height = demo_vertical_total_height(&nav);
+    let width = nav.vertical_rail_width();
+    let area = Rect::new(0, 0, width + 4, height);
+    let mut buf = Buffer::empty(area);
+    draw(nav, area, &mut buf);
+    let baseline_x = area.right() - width;
+    assert_eq!(buf[(baseline_x, 0)].symbol(), "┬");
+    assert_eq!(buf[(baseline_x, height - 1)].symbol(), "─");
 }
 
 #[test]
@@ -885,6 +1053,16 @@ fn demo_total_width(nav: &TabNav<'_>) -> u16 {
     (0..nav.tabs.len())
         .map(|index| nav.auto_tab_width(index).unwrap())
         .sum()
+}
+
+fn demo_vertical_total_height(nav: &TabNav<'_>) -> u16 {
+    (0..nav.tabs.len())
+        .map(|index| nav.auto_tab_height(index).unwrap())
+        .sum()
+}
+
+fn demo_vertical_labels() -> Vec<String> {
+    DEMO_TABS.iter().map(|label| vertical_label(label)).collect()
 }
 
 #[test]
