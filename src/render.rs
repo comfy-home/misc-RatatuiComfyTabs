@@ -15,7 +15,8 @@ use ratatui_core::{
 
 use crate::TAB_BORDER;
 use crate::config::{
-    HorizontalPosition, TabBarAlign, TabBarEnd, TabOrientation, TabPadding, VerticalPosition,
+    HorizontalPosition, OverflowPolicy, TabBarAlign, TabBarEnd, TabOrientation, TabPadding,
+    VerticalPosition,
 };
 use crate::layout::{
     TabViewport, auto_vertical_tab_height, char_display_width, compute_viewport,
@@ -25,6 +26,11 @@ use crate::layout::{
 };
 use crate::nav::TabNav;
 use crate::state::TabNavState;
+
+const SCROLL_BEFORE_HORIZONTAL: &str = "⯇";
+const SCROLL_AFTER_HORIZONTAL: &str = "⯈";
+const SCROLL_BEFORE_VERTICAL: &str = "⯅";
+const SCROLL_AFTER_VERTICAL: &str = "⯆";
 
 impl Widget for TabNav<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
@@ -117,6 +123,9 @@ fn render_horizontal(
     draw_horizontal_baseline(content_left, content_right, baseline_y, border, bs, buf);
 
     let viewport = compute_viewport(nav, area, scroll_offset);
+    let scroll_overflow = nav.overflow == OverflowPolicy::Scroll;
+    let first_visible = viewport.entries.first().map(|entry| entry.index);
+    let last_visible = viewport.entries.last().map(|entry| entry.index);
 
     for entry in &viewport.entries {
         let label = nav.tabs[entry.index];
@@ -143,6 +152,19 @@ fn render_horizontal(
             text_style,
             buf,
         );
+        if scroll_overflow {
+            draw_horizontal_scroll_overflow_markers(
+                left_x,
+                right_x,
+                label_y,
+                entry.index,
+                first_visible,
+                last_visible,
+                &viewport,
+                tab_border_style,
+                buf,
+            );
+        }
 
         if active {
             if let Some(sym) = effective_indicator(nav) {
@@ -218,6 +240,9 @@ fn render_vertical(
     draw_vertical_baseline(baseline_x, content_top, content_bottom, border, bs, buf);
 
     let positions = compute_viewport(nav, area, scroll_offset);
+    let scroll_overflow = nav.overflow == OverflowPolicy::Scroll;
+    let first_visible = positions.entries.first().map(|entry| entry.index);
+    let last_visible = positions.entries.last().map(|entry| entry.index);
 
     for entry in &positions.entries {
         let label = nav.tabs[entry.index];
@@ -262,6 +287,21 @@ fn render_vertical(
             text_style,
             buf,
         );
+        if scroll_overflow {
+            draw_vertical_scroll_overflow_markers(
+                left_x,
+                top_y,
+                bot_y,
+                label,
+                pad,
+                entry.index,
+                first_visible,
+                last_visible,
+                &positions,
+                tab_border_style,
+                buf,
+            );
+        }
         draw_bottom_border(left_x, right_x, bot_y, border, tab_border_style, buf);
 
         if active {
@@ -305,6 +345,64 @@ fn render_vertical(
     }
 }
 
+fn draw_horizontal_scroll_overflow_markers(
+    left: u16,
+    right: u16,
+    label_y: u16,
+    tab_index: usize,
+    first_visible: Option<usize>,
+    last_visible: Option<usize>,
+    viewport: &TabViewport,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    if viewport.clipped_before && first_visible == Some(tab_index) {
+        buf[(left, label_y)]
+            .set_symbol(SCROLL_BEFORE_HORIZONTAL)
+            .set_style(style);
+    }
+    if viewport.clipped_after && last_visible == Some(tab_index) {
+        buf[(right, label_y)]
+            .set_symbol(SCROLL_AFTER_HORIZONTAL)
+            .set_style(style);
+    }
+}
+
+fn draw_vertical_scroll_overflow_markers(
+    left: u16,
+    top: u16,
+    bottom: u16,
+    label: &str,
+    pad: TabPadding,
+    tab_index: usize,
+    first_visible: Option<usize>,
+    last_visible: Option<usize>,
+    viewport: &TabViewport,
+    style: Style,
+    buf: &mut Buffer,
+) {
+    let (label_x, label_y) = label_origin(left, top, pad);
+    let line_count = label.lines().count().max(1) as u16;
+    let last_label_y = label_y.saturating_add(line_count.saturating_sub(1));
+
+    if viewport.clipped_before
+        && first_visible == Some(tab_index)
+        && label_y > top.saturating_add(TAB_BORDER)
+    {
+        buf[(label_x, label_y - 1)]
+            .set_symbol(SCROLL_BEFORE_VERTICAL)
+            .set_style(style);
+    }
+    if viewport.clipped_after
+        && last_visible == Some(tab_index)
+        && last_label_y.saturating_add(1) < bottom
+    {
+        buf[(label_x, last_label_y + 1)]
+            .set_symbol(SCROLL_AFTER_VERTICAL)
+            .set_style(style);
+    }
+}
+
 fn draw_horizontal_overflow_affordances(
     viewport: &TabViewport,
     baseline_y: u16,
@@ -312,15 +410,10 @@ fn draw_horizontal_overflow_affordances(
     buf: &mut Buffer,
 ) {
     if let Some(x) = viewport.before_affordance_at {
-        buf[(x, baseline_y)].set_symbol("‹").set_style(style);
+        buf[(x, baseline_y)].set_symbol("…").set_style(style);
     }
     if let Some(x) = viewport.after_affordance_at {
-        let symbol = if viewport.clipped_before {
-            "›"
-        } else {
-            "…"
-        };
-        buf[(x, baseline_y)].set_symbol(symbol).set_style(style);
+        buf[(x, baseline_y)].set_symbol("…").set_style(style);
     }
 }
 
@@ -331,15 +424,10 @@ fn draw_vertical_overflow_affordances(
     buf: &mut Buffer,
 ) {
     if let Some(y) = viewport.before_affordance_at {
-        buf[(rail_x, y)].set_symbol("↑").set_style(style);
+        buf[(rail_x, y)].set_symbol("…").set_style(style);
     }
     if let Some(y) = viewport.after_affordance_at {
-        let symbol = if viewport.clipped_before {
-            "↓"
-        } else {
-            "…"
-        };
-        buf[(rail_x, y)].set_symbol(symbol).set_style(style);
+        buf[(rail_x, y)].set_symbol("…").set_style(style);
     }
 }
 
