@@ -664,7 +664,7 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
                 .set_style(args.style);
         }
         TabBarAlign::End => {
-            let leading = mirror_cap_horizontally(start_trailing);
+            let leading = mirror_cap_vertically(start_trailing);
             let trailing = if last_visible_active {
                 "─"
             } else if args.opens_right {
