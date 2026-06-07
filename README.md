@@ -84,6 +84,12 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bord
 ## GIF Presentation
 
 <div align="center">
+Introduced in <code>v0.5.9</code> (GIF) :
+</div>
+
+![demo](assets/demo-0-5-9.gif)
+
+<div align="center">
 Introduced in <code>v0.4.4</code> (GIF) :
 </div>
 
