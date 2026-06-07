@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "tag_from": "v0.5.9",
+      "tag_origin": "main",
+      "tag_to": "v0.5.9",
+      "generated": "true",
+      "generated_error": null,
+      "ts": "20260607-203454-328"
+    },
+    {
       "tag_from": "v0.4.4",
       "tag_origin": "main",
       "tag_to": "v0.4.4",
