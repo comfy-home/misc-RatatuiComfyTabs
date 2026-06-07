@@ -596,33 +596,44 @@ fn apply_horizontal_tab_bar_end(args: ApplyHorizontalTabBarEndArgs, buf: &mut Bu
     }
 }
 
-fn vertical_start_tab_bar_end_caps(
-    end_style: TabBarEnd,
-    opens_right: bool,
-    first_visible_active: bool,
-) -> Option<(&'static str, &'static str)> {
-    if end_style == TabBarEnd::NoEnd {
-        return None;
-    }
-    let leading = if first_visible_active {
+fn vertical_tab_leading_junction(first_visible_active: bool, opens_right: bool) -> &'static str {
+    if first_visible_active {
         "─"
     } else if opens_right {
         "┬"
     } else {
         "┴"
-    };
-    let trailing = match (end_style, opens_right) {
-        (TabBarEnd::Sqr, true) => "└",
-        (TabBarEnd::Rnd, true) => "╰",
-        (TabBarEnd::Sqr, false) => "┘",
-        (TabBarEnd::Rnd, false) => "╯",
-        (TabBarEnd::NoEnd, _) => return None,
-    };
-    Some((leading, trailing))
+    }
+}
+
+fn vertical_tab_trailing_junction(last_visible_active: bool, opens_right: bool) -> &'static str {
+    if last_visible_active {
+        "─"
+    } else if opens_right {
+        "┴"
+    } else {
+        "┬"
+    }
+}
+
+fn vertical_margin_trailing_cap(end_style: TabBarEnd, opens_right: bool) -> Option<&'static str> {
+    match (end_style, opens_right) {
+        (TabBarEnd::Sqr, true) => Some("└"),
+        (TabBarEnd::Rnd, true) => Some("╰"),
+        (TabBarEnd::Sqr, false) => Some("┘"),
+        (TabBarEnd::Rnd, false) => Some("╯"),
+        (TabBarEnd::NoEnd, _) => None,
+    }
 }
 
 fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer) {
     if args.content_bottom == 0 {
+        return;
+    }
+    let Some((group_start, group_end)) = args.viewport.group_bounds() else {
+        return;
+    };
+    if args.end_style == TabBarEnd::NoEnd {
         return;
     }
 
@@ -637,47 +648,76 @@ fn apply_vertical_tab_bar_end(args: ApplyVerticalTabBarEndArgs, buf: &mut Buffer
         .last()
         .is_some_and(|entry| entry.index == args.selected);
 
-    let Some((start_leading, start_trailing)) =
-        vertical_start_tab_bar_end_caps(args.end_style, args.opens_right, first_visible_active)
-    else {
+    let exact_fit = group_start == args.content_top && group_end == args.content_bottom;
+    let trailing_in_slack = group_end < args.content_bottom;
+    let leading_in_slack = group_start > args.content_top;
+    let leading_junction =
+        vertical_tab_leading_junction(first_visible_active, args.opens_right);
+    let trailing_junction =
+        vertical_tab_trailing_junction(last_visible_active, args.opens_right);
+    let margin_trailing = vertical_margin_trailing_cap(args.end_style, args.opens_right);
+    let margin_leading = margin_trailing.map(mirror_cap_vertically);
+
+    if exact_fit {
+        if let Some(first) = args.viewport.entries.first() {
+            buf[(args.baseline_x, first.offset)]
+                .set_symbol(leading_junction)
+                .set_style(args.style);
+        }
+        if let Some(last) = args.viewport.entries.last() {
+            buf[(args.baseline_x, last.offset + last.size - 1)]
+                .set_symbol(trailing_junction)
+                .set_style(args.style);
+        }
         return;
-    };
+    }
 
     match args.align {
         TabBarAlign::Start => {
             if let Some(first) = args.viewport.entries.first() {
                 buf[(args.baseline_x, first.offset)]
-                    .set_symbol(start_leading)
+                    .set_symbol(leading_junction)
                     .set_style(args.style);
             }
-            buf[(args.baseline_x, args.content_bottom - 1)]
-                .set_symbol(start_trailing)
-                .set_style(args.style);
+            if trailing_in_slack {
+                if let Some(cap) = margin_trailing {
+                    buf[(args.baseline_x, args.content_bottom - 1)]
+                        .set_symbol(cap)
+                        .set_style(args.style);
+                }
+            } else if let Some(last) = args.viewport.entries.last() {
+                buf[(args.baseline_x, last.offset + last.size - 1)]
+                    .set_symbol(trailing_junction)
+                    .set_style(args.style);
+            }
         }
         TabBarAlign::Center => {
-            let leading = mirror_cap_vertically(start_trailing);
-            buf[(args.baseline_x, args.content_top)]
-                .set_symbol(leading)
-                .set_style(args.style);
-            buf[(args.baseline_x, args.content_bottom - 1)]
-                .set_symbol(start_trailing)
-                .set_style(args.style);
+            if leading_in_slack {
+                if let Some(cap) = margin_leading {
+                    buf[(args.baseline_x, args.content_top)]
+                        .set_symbol(cap)
+                        .set_style(args.style);
+                }
+            }
+            if trailing_in_slack {
+                if let Some(cap) = margin_trailing {
+                    buf[(args.baseline_x, args.content_bottom - 1)]
+                        .set_symbol(cap)
+                        .set_style(args.style);
+                }
+            }
         }
         TabBarAlign::End => {
-            let leading = mirror_cap_vertically(start_trailing);
-            let trailing = if last_visible_active {
-                "─"
-            } else if args.opens_right {
-                "┴"
-            } else {
-                "┬"
-            };
-            buf[(args.baseline_x, args.content_top)]
-                .set_symbol(leading)
-                .set_style(args.style);
+            if leading_in_slack {
+                if let Some(cap) = margin_leading {
+                    buf[(args.baseline_x, args.content_top)]
+                        .set_symbol(cap)
+                        .set_style(args.style);
+                }
+            }
             if let Some(last) = args.viewport.entries.last() {
                 buf[(args.baseline_x, last.offset + last.size - 1)]
-                    .set_symbol(trailing)
+                    .set_symbol(trailing_junction)
                     .set_style(args.style);
             }
         }
