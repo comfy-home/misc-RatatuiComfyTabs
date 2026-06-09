@@ -534,6 +534,10 @@ TabNav::new(&labels, selected)
 
 ## Demo
 
+1. `git clone` the repo
+2. `cd` into it
+3. and run...
+
 ```bash
 cargo run --example demo
 ```
@@ -561,7 +565,6 @@ cargo run --example demo
 | Left click         | Select tab under pointer                       |
 | `q` / `Esc`        | Quit                                           |
 
-Run `cargo run --example demo` for the interactive showcase.
 
 ## License
 
