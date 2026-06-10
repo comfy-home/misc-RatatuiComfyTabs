@@ -8,8 +8,8 @@ description = "An advanced tab-bar navigation widget for Ratatui. Highly customi
 license-file = "LICENSE.md"
 keywords = ["navigation", "ratatui", "tabs", "tab-bar", "comfy"]
 categories = ["command-line-interface"]
-homepage = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
-repository = "https://gitlab.com/comfyhome/dist/crates/ratatui-comfy-tabs"
+homepage = "https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs"
+repository = "https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs"
 readme = "README.md"
 exclude = ["assets/*.gif"]
 
