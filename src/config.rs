@@ -145,6 +145,63 @@ pub enum HorizontalPosition {
     Bottom,
 }
 
+/// Horizontal strip placement plus an optional cap on simultaneously visible tabs.
+///
+/// Pass [`HorizontalPosition::Top`] (or [`HorizontalPosition::Bottom`]) directly to
+/// [`TabNav::horizontal_position`](crate::TabNav::horizontal_position), or call
+/// [`.max(n)`](HorizontalPosition::max) to limit the sliding window:
+///
+/// ```ignore
+/// TabNav::new(&labels, 0)
+///     .horizontal_position(HorizontalPosition::Top.max(5));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct HorizontalPositionConfig {
+    /// Strip edge and open direction.
+    pub position: HorizontalPosition,
+    /// When set, at most this many tabs are visible; additional tabs require scrolling.
+    pub max_visible: Option<usize>,
+}
+
+impl HorizontalPosition {
+    /// Caps the visible tab window to `max` tabs (scroll mode semantics).
+    pub const fn max(self, max: usize) -> HorizontalPositionConfig {
+        HorizontalPositionConfig {
+            position: self,
+            max_visible: Some(max),
+        }
+    }
+}
+
+impl From<HorizontalPosition> for HorizontalPositionConfig {
+    fn from(position: HorizontalPosition) -> Self {
+        Self {
+            position,
+            max_visible: None,
+        }
+    }
+}
+
+impl HorizontalPositionConfig {
+    /// Strip edge without an explicit max (same as [`From<HorizontalPosition>`]).
+    pub const fn new(position: HorizontalPosition) -> Self {
+        Self {
+            position,
+            max_visible: None,
+        }
+    }
+
+    /// Returns the strip edge.
+    pub const fn position(self) -> HorizontalPosition {
+        self.position
+    }
+
+    /// Returns the configured visible-tab cap, if any.
+    pub const fn max_visible(self) -> Option<usize> {
+        self.max_visible
+    }
+}
+
 /// Tab strip alignment within its allocated flow axis.
 ///
 /// Horizontal mode: [`Start`](Self::Start) = left, [`Center`](Self::Center) = centred,
@@ -171,6 +228,64 @@ pub enum VerticalPosition {
     Left,
     /// Rail along the right edge; active tab opens left.
     Right,
+}
+
+/// Vertical rail placement plus an optional cap on simultaneously visible tabs.
+///
+/// Pass [`VerticalPosition::Left`] (or [`VerticalPosition::Right`]) directly to
+/// [`TabNav::vertical_position`](crate::TabNav::vertical_position), or call
+/// [`.max(n)`](VerticalPosition::max) to limit the sliding window:
+///
+/// ```ignore
+/// TabNav::new(&labels, 0)
+///     .orientation(TabOrientation::Vertical)
+///     .vertical_position(VerticalPosition::Left.max(2));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct VerticalPositionConfig {
+    /// Rail edge and open direction.
+    pub position: VerticalPosition,
+    /// When set, at most this many tabs are visible; additional tabs require scrolling.
+    pub max_visible: Option<usize>,
+}
+
+impl VerticalPosition {
+    /// Caps the visible tab window to `max` tabs (scroll mode semantics).
+    pub const fn max(self, max: usize) -> VerticalPositionConfig {
+        VerticalPositionConfig {
+            position: self,
+            max_visible: Some(max),
+        }
+    }
+}
+
+impl From<VerticalPosition> for VerticalPositionConfig {
+    fn from(position: VerticalPosition) -> Self {
+        Self {
+            position,
+            max_visible: None,
+        }
+    }
+}
+
+impl VerticalPositionConfig {
+    /// Rail edge without an explicit max (same as [`From<VerticalPosition>`]).
+    pub const fn new(position: VerticalPosition) -> Self {
+        Self {
+            position,
+            max_visible: None,
+        }
+    }
+
+    /// Returns the rail edge.
+    pub const fn position(self) -> VerticalPosition {
+        self.position
+    }
+
+    /// Returns the configured visible-tab cap, if any.
+    pub const fn max_visible(self) -> Option<usize> {
+        self.max_visible
+    }
 }
 
 /// Behaviour when tabs exceed available strip space.
