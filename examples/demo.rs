@@ -87,6 +87,7 @@ struct App {
     all_caps: bool,
     overflow: OverflowPolicy,
     narrow_tabs: bool,
+    position_max_limiter: bool,
     mouse_wheel: bool,
     mouse_click: bool,
     mouse_reorder: bool,
@@ -115,6 +116,7 @@ impl Default for App {
             all_caps: false,
             overflow: OverflowPolicy::default(),
             narrow_tabs: false,
+            position_max_limiter: false,
             mouse_wheel: true,
             mouse_click: true,
             mouse_reorder: true,
@@ -269,6 +271,15 @@ impl App {
                         self.record_command(format!(
                             "self.overflow = OverflowPolicy::{:?};\nself.tab_state.scroll_offset = 0;",
                             self.overflow
+                        ));
+                    }
+
+                    KeyCode::Char('3') => {
+                        self.position_max_limiter = !self.position_max_limiter;
+                        self.tab_state.clear_scroll();
+                        self.record_command(format!(
+                            "self.position_max_limiter = {};  // horizontal max 5, vertical max 2 when on",
+                            self.position_max_limiter
                         ));
                     }
 
@@ -788,8 +799,8 @@ impl App {
         }
     }
 
-    fn position_label(&self) -> &'static str {
-        match self.mode {
+    fn position_label(&self) -> String {
+        let edge = match self.mode {
             DemoMode::Horizontal => match self.horizontal_position {
                 HorizontalPosition::Top => "top",
                 HorizontalPosition::Bottom => "bottom",
@@ -798,6 +809,31 @@ impl App {
                 VerticalPosition::Left => "left",
                 VerticalPosition::Right => "right",
             },
+        };
+        if self.position_max_limiter {
+            let max = match self.mode {
+                DemoMode::Horizontal => 5,
+                DemoMode::Vertical => 2,
+            };
+            format!("{edge}+max{max}")
+        } else {
+            edge.to_string()
+        }
+    }
+
+    fn horizontal_position_config(&self) -> ratatui_comfy_tabs::HorizontalPositionConfig {
+        if self.position_max_limiter {
+            self.horizontal_position.max(5)
+        } else {
+            self.horizontal_position.into()
+        }
+    }
+
+    fn vertical_position_config(&self) -> ratatui_comfy_tabs::VerticalPositionConfig {
+        if self.position_max_limiter {
+            self.vertical_position.max(2)
+        } else {
+            self.vertical_position.into()
         }
     }
 
@@ -829,9 +865,9 @@ impl App {
         if self.mode == DemoMode::Vertical {
             nav = nav
                 .orientation(TabOrientation::Vertical)
-                .vertical_position(self.vertical_position);
+                .vertical_position(self.vertical_position_config());
         } else {
-            nav = nav.horizontal_position(self.horizontal_position);
+            nav = nav.horizontal_position(self.horizontal_position_config());
         }
 
         nav = nav
@@ -890,6 +926,11 @@ impl App {
         let click_label = if self.mouse_click { "on" } else { "off" };
         let reorder_label = self.reorder_policy_label();
         let position_label = self.position_label();
+        let max_limiter_label = if self.position_max_limiter {
+            "on"
+        } else {
+            "off"
+        };
         let align_label = self.align_label();
 
         let nav = match self.mode {
@@ -973,6 +1014,12 @@ impl App {
                 key("P"),
                 dim(" position ("),
                 Span::styled(position_label, Style::new().fg(Color::DarkGray)),
+                dim(")"),
+            ],
+            vec![
+                key("3"),
+                dim(" max ("),
+                Span::styled(max_limiter_label, Style::new().fg(Color::DarkGray)),
                 dim(")"),
             ],
             vec![

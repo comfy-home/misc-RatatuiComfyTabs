@@ -1,7 +1,7 @@
 [package]
 name = "ratatui-comfy-tabs"
 authors = ["ComfyHome™ <dev@comfyhome.io>"]
-version = "0.5.9"
+version = "0.5.10"
 rust-version = "1.88"
 edition = "2024"
 description = "An advanced tab-bar navigation widget for Ratatui. Highly customizable, with built-in multi-position rendering logic."

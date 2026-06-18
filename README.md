@@ -7,7 +7,7 @@
 [![GitHub Repo](https://img.shields.io/badge/Repo-GitHub-181717?style=plastic&logo=github&logoColor=white)](https://github.com/comfy-home/misc-RatatuiComfyTabs)
 
 
-Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bordered, rounded-corner tabs with horizontal and vertical layouts, robust overflow handling, margin/padding handler, and many more...
+Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), originally made for [ComfyGit](https://github.com/comfy-home/ComfyGit): bordered, rounded-corner tabs with horizontal and vertical layouts (3 alignments for each), robust overflow handling, margin/padding handler, mouse support, and many more...
 </div>
 
 ---
@@ -143,7 +143,7 @@ Introduced in <code>v0.3.4</code> (GIF) :
 - Optional per-tab size overrides via [`tab_widths`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_widths) / [`tab_heights`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html#method.tab_heights)
 - [`OverflowPolicy`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.OverflowPolicy.html) scroll (default) or truncate; in-tab scroll hints (`⯇` / `⯈` / `⯅` / `⯆`); truncate may show `…` on the baseline
 - [`TabBarAlign`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabBarAlign.html) start, center, or end packing along the strip
-- [`HorizontalPosition`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.HorizontalPosition.html) / [`VerticalPosition`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.VerticalPosition.html) strip placement and open direction
+- [`HorizontalPosition`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.HorizontalPosition.html) / [`VerticalPosition`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.VerticalPosition.html) strip placement and open direction; optional [`.max(n)`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.HorizontalPosition.html#method.max) cap on simultaneously visible tabs
 - Unicode-aware label width via `unicode-width` (CJK and wide glyphs size correctly)
 - [`StatefulWidget`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNav.html) with [`TabNavState`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html) and [`TabAxis`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) navigation helpers
 - Mouse wheel tab switching over the strip via [`TabNavState::handle_mouse_wheel`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.handle_mouse_wheel) (enabled by default)
@@ -288,8 +288,8 @@ Labels may contain `\n` for multi-line stacked text, or use [`vertical_label`](h
 | Method | Default | Description |
 |--------|---------|-------------|
 | `orientation()` | `Horizontal` | `Horizontal` or `Vertical` tab strip |
-| `horizontal_position()` | `Top` | Horizontal strip above or below content |
-| `vertical_position()` | `Left` | Vertical rail on the left or right |
+| `horizontal_position()` | `Top` | `Top` / `Bottom`; pass `.max(n)` to cap visible tabs |
+| `vertical_position()` | `Left` | `Left` / `Right`; pass `.max(n)` to cap visible tabs |
 | `tab_bar_align()` | `Start` | Pack tabs at start, center, or end of strip |
 | `margin()` | orientation-specific | Strip inset — see [Margin](#margin) |
 | `padding()` | orientation-specific | Interior tab spacing — see [Padding](#padding) |
@@ -426,6 +426,27 @@ state.select_direction(TabDirection::Previous, 5);
 
 Use `.overflow(OverflowPolicy::Truncate)` when you prefer omitted tabs over a scroll window.
 
+### Position max cap
+
+Limit how many tabs appear at once regardless of available strip space. Hidden tabs are reached via [`TabNavState::scroll_offset`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#structfield.scroll_offset) (scroll mode) or keyboard/wheel navigation with [`ensure_selected_visible`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/struct.TabNavState.html#method.ensure_selected_visible):
+
+```rust
+use ratatui_comfy_tabs::{HorizontalPosition, TabNav, TabOrientation, VerticalPosition};
+
+// Horizontal: at most five tabs visible (default Top syntax unchanged)
+TabNav::new(&labels, 0).horizontal_position(HorizontalPosition::Top.max(5));
+
+// Vertical: at most two tabs visible
+TabNav::new(&labels, 0)
+    .orientation(TabOrientation::Vertical)
+    .vertical_position(VerticalPosition::Left.max(2));
+
+// No cap — existing API unchanged
+TabNav::new(&labels, 0).horizontal_position(HorizontalPosition::Top);
+```
+
+When a max is set and total tabs exceed it, the widget uses scroll-window semantics even if physical space could fit more tabs.
+
 Use [`TabAxis::Decrease`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) / [`TabAxis::Increase`](https://docs.rs/ratatui-comfy-tabs/latest/ratatui_comfy_tabs/enum.TabAxis.html) to map arrow keys by orientation (`Decrease` → previous tab, `Increase` → next).
 
 ### Mouse wheel
@@ -553,6 +574,7 @@ cargo run --example demo
 | `1`                | Cycle padding preset (`default` / alt presets) |
 | `P`                | Cycle horizontal/vertical position and tab bar alignment |
 | `2`                | Cycle tab bar end (`none` / `sqr` / `rnd`)     |
+| `3`                | Toggle position max cap (horizontal **5**, vertical **2**) |
 | `C`                | Toggle all-caps tab labels                     |
 | `O`                | Toggle overflow (`truncate` / `scroll`)        |
 | `W`                | Toggle narrow tab strip (forces overflow)      |

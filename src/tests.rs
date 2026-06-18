@@ -1055,6 +1055,47 @@ fn scroll_mode_shows_later_tabs() {
     assert!(mid_line.contains("Three") || mid_line.contains("Four"));
 }
 
+#[test]
+fn horizontal_position_max_limits_visible_tabs_in_wide_area() {
+    let nav = TabNav::new(&DEMO_TABS, 0).horizontal_position(HorizontalPosition::Top.max(5));
+    let area = Rect::new(0, 0, 200, 3);
+    let viewport = compute_viewport(&nav, area, 0);
+    assert_eq!(viewport.entries.len(), 5);
+    assert!(viewport.clipped_after);
+    assert!(!viewport.clipped_before);
+}
+
+#[test]
+fn horizontal_position_max_scroll_reveals_hidden_tabs() {
+    let nav = TabNav::new(&DEMO_TABS, 6).horizontal_position(HorizontalPosition::Top.max(5));
+    let area = Rect::new(0, 0, 200, 3);
+    let mut state = TabNavState::new(6);
+    state.ensure_selected_visible(&nav, area);
+    let viewport = compute_viewport(&nav, area, state.scroll_offset);
+    assert_eq!(viewport.entries.len(), 5);
+    assert!(viewport.entries.iter().any(|entry| entry.index == 6));
+}
+
+#[test]
+fn vertical_position_max_limits_visible_tabs_in_tall_area() {
+    let labels = demo_vertical_labels();
+    let tab_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let nav = TabNav::new(&tab_refs, 0)
+        .orientation(TabOrientation::Vertical)
+        .vertical_position(VerticalPosition::Left.max(2));
+    let area = Rect::new(0, 0, nav.vertical_rail_width(), 80);
+    let viewport = compute_viewport(&nav, area, 0);
+    assert_eq!(viewport.entries.len(), 2);
+    assert!(viewport.clipped_after);
+}
+
+#[test]
+fn horizontal_position_without_max_still_accepts_unit_variant() {
+    let nav = TabNav::new(&["A", "B"], 0).horizontal_position(HorizontalPosition::Bottom);
+    assert_eq!(nav.horizontal_position.position, HorizontalPosition::Bottom);
+    assert_eq!(nav.horizontal_position.max_visible, None);
+}
+
 const DEMO_TABS: [&str; 7] = [
     "Overview", "Nodes", "Network", "Content", "UI", "Config", "Logs",
 ];
