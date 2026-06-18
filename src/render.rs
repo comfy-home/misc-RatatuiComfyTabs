@@ -117,7 +117,7 @@ fn render_horizontal(
     let top_y = horizontal_strip_origin_y(nav, area);
     let bot_y = top_y + strip_height - 1;
     let label_y = top_y + TAB_BORDER + pad.top;
-    let opens_down = nav.horizontal_position == HorizontalPosition::Top;
+    let opens_down = nav.horizontal_position.position == HorizontalPosition::Top;
     let baseline_y = if opens_down { bot_y } else { top_y };
 
     draw_horizontal_baseline(content_left, content_right, baseline_y, border, bs, buf);
@@ -234,7 +234,7 @@ fn render_vertical(
     let right_x = left_x + rail_width - 1;
     let content_top = area.y + margin.start;
     let content_bottom = area.bottom() - margin.end;
-    let opens_right = nav.vertical_position == VerticalPosition::Left;
+    let opens_right = nav.vertical_position.position == VerticalPosition::Left;
     let baseline_x = if opens_right { right_x } else { left_x };
 
     draw_vertical_baseline(baseline_x, content_top, content_bottom, border, bs, buf);
