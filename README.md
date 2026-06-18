@@ -7,7 +7,7 @@
 [![GitHub Repo](https://img.shields.io/badge/Repo-GitHub-181717?style=plastic&logo=github&logoColor=white)](https://github.com/comfy-home/misc-RatatuiComfyTabs)
 
 
-Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs): bordered, rounded-corner tabs with horizontal and vertical layouts, robust overflow handling, margin/padding handler, and many more...
+Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), originally made for [ComfyGit](https://github.com/comfy-home/ComfyGit): bordered, rounded-corner tabs with horizontal and vertical layouts (3 alignments for each), robust overflow handling, margin/padding handler, mouse support, and many more...
 </div>
 
 ---
