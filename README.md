@@ -12,12 +12,27 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 
 ---
 
-<details><summary>👀 What's new in v0.5.9 ...</summary>
+<details><summary>👀 What's new in v0.5.10 ...</summary>
 
 ### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
 
-<sup>💬 Intro:</sup>  
-<sup>_Again, quite big functional improvements. GIF showing new features attached. All features well documented._</sup>  
+#### **1. &nbsp;&nbsp;&nbsp;LIMITER for max number of displayed tabs**
+- new optional argument within position declaration `.max(n)`
+- you can use for example `HorizontalPosition::Top.max(5))` to cap max displayed tabs to 5
+- or `VerticalPosition::Left.max(2))` to limit vertical tabs to 2
+- no breaking changes, old config still works as before!
+- new feature well documented
+  - no GIF this time, but it should be easy to imagine...
+  - however, the feature is included in the examle DEMO case (assigned shortcut `3`), feel free to try it first!
+
+
+<sub>...  🎉 Enjoy!</sub>
+
+<br><br>
+
+<details><summary>👀 See previous changes...</summary>
+<br>
+<details><summary>v0-5-9 ...</summary>
 
 #### **1. &nbsp;&nbsp;&nbsp;Full tab-bar alignment support!**
 - `start`|`end`|`center`
@@ -41,10 +56,8 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 
 <sub>...  🎉 Enjoy!</sub>
 
-<br><br>
-
-<details><summary>👀 See previous changes...</summary>
 <br>
+</details>
 <details><summary>v0-4-4 ...</summary>
 
 #### **1. &nbsp;&nbsp;&nbsp;Selection FLASH Indication**
@@ -97,11 +110,12 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 <br>
 
 ---
-<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs/-/releases/v0.5.9)</sup>
+<sup>... ✨ auto-injected by [ComfyGit](https://github.com/comfy-home/ComfyGit)       |       For detailed changelog [CLICK HERE](https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs/-/releases/v0.5.10)</sup>
 
 ---
 
 </details>
+
 
 
 
