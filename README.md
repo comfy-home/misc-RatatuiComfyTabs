@@ -11,6 +11,10 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 </div>
 
 ---
+---
+
+
+### ✨ Latest changes
 
 <details><summary>👀 What's new in v0.5.10 ...</summary>
 
@@ -116,11 +120,16 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 
 </details>
 
-
-
-
+<sub><sup>_The_ 👆 _"What's new" section_ ☝️ _is created automatically using our other project - [ComfyGit](https://github.com/comfy-home/ComfyGit). It can do this, and a LOT more..._</sup></sub>
 
 ---
+
+**Enjoying the Tabs project?** Dropping a ⭐ on our [GitHub](https://github.com/comfy-home/misc-RatatuiComfyTabs) or [GitLab](https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs) repo would absolutely make our day...
+
+Any **issues**, or **suggestions**? Click [HERE](https://github.com/comfy-home/misc-RatatuiComfyTabs/issues) and let us know.
+
+---
+
 ## GIF Presentation
 
 <div align="center">
@@ -577,39 +586,45 @@ TabNav::new(&labels, selected)
 cargo run --example demo
 ```
 
-| Key                | Action                                         |
-| --------------------| ------------------------------------------------|
-| `h` / `l` or ← / → | Previous / next tab (horizontal mode)          |
-| `j` / `k` or ↑ / ↓ | Previous / next tab (vertical mode)            |
-| `Tab` / `BackTab`  | Cycle tabs                                     |
-| `M`                | Toggle horizontal / vertical mode              |
-| `I`                | Toggle active-tab indicator                    |
-| `B`                | Toggle `tab_border::Rnd` / `Sqr` borders       |
-| `1`                | Cycle padding preset (`default` / alt presets) |
-| `P`                | Cycle horizontal/vertical position and tab bar alignment |
-| `2`                | Cycle tab bar end (`none` / `sqr` / `rnd`)     |
+| Key                | Action                                                     |
+| --------------------| ------------------------------------------------------------|
+| `h` / `l` or ← / → | Previous / next tab (horizontal mode)                      |
+| `j` / `k` or ↑ / ↓ | Previous / next tab (vertical mode)                        |
+| `Tab` / `BackTab`  | Cycle tabs                                                 |
+| `M`                | Toggle horizontal / vertical mode                          |
+| `I`                | Toggle active-tab indicator                                |
+| `B`                | Toggle `tab_border::Rnd` / `Sqr` borders                   |
+| `1`                | Cycle padding preset (`default` / alt presets)             |
+| `P`                | Cycle horizontal/vertical position and tab bar alignment   |
+| `2`                | Cycle tab bar end (`none` / `sqr` / `rnd`)                 |
 | `3`                | Toggle position max cap (horizontal **5**, vertical **2**) |
-| `C`                | Toggle all-caps tab labels                     |
-| `O`                | Toggle overflow (`truncate` / `scroll`)        |
-| `W`                | Toggle narrow tab strip (forces overflow)      |
-| `Y`                | Toggle mouse wheel tab switching               |
-| `X`                | Toggle mouse click tab selection               |
-| `P`                | Cycle reorder policy (`all` / `none` / `some` pinned) |
-| `[` / `]`          | Scroll tab window (scroll mode)                |
-| Drag tab           | Reorder when policy allows (Overview pinned in `some`) |
-| Scroll wheel       | Previous / next tab while hovering tabs        |
-| Left click         | Select tab under pointer                       |
-| `q` / `Esc`        | Quit                                           |
+| `C`                | Toggle all-caps tab labels                                 |
+| `O`                | Toggle overflow (`truncate` / `scroll`)                    |
+| `W`                | Toggle narrow tab strip (forces overflow)                  |
+| `Y`                | Toggle mouse wheel tab switching                           |
+| `X`                | Toggle mouse click tab selection                           |
+| `P`                | Cycle reorder policy (`all` / `none` / `some` pinned)      |
+| `[` / `]`          | Scroll tab window (scroll mode)                            |
+| Drag tab           | Reorder when policy allows (Overview pinned in `some`)     |
+| Scroll wheel       | Previous / next tab while hovering tabs                    |
+| Left click         | Select tab under pointer                                   |
+| `q` / `Esc`        | Quit                                                       |
+
+---
 
 
-## License
+## License & Attribution
 
-Version 0.1.0 and above is licensed under the Ratatui-Comfy-Tabs Project License — SA-PS:DA (v1.0). See [LICENSE.md](LICENSE.md).
+Version 0.1.0 and above is licensed under the Ratatui-Comfy-Tabs Project License — **SA-PS:DA** (Source-Available Public Software with Distribution Allowed).  
+
+See [LICENSE.md](LICENSE.md).
+
+><sup> **Attribution**: Originally based on 350 lines of code from `tui-tabs v0.0.1` by [jharsono](https://github.com/jharsono), therefore, v0.0.1 inherits its license (MIT). Lineage and upstream references are recorded in `Cargo.toml` under `[package.metadata]`.</sup>
 
 ## Contribution
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Attribution
-
-ratatui-comfy-tabs v0.0.1 uses approx 350 LoC of `tui-tabs` by [jharsono](https://github.com/jharsono), therefore, v0.0.1 inherits its license. Lineage and upstream references are recorded in `Cargo.toml` under `[package.metadata]`.
+<p align="center">
+  <sub>Made with ❤️ by <a href="https://comfyhome.io">ComfyHome™</a></sub>
+</p>
