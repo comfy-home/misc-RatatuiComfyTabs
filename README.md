@@ -120,7 +120,7 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 
 </details>
 
-<br>
+---
 
 **Enjoying the Tabs project?** Dropping a ⭐ on our [GitHub](https://github.com/comfy-home/misc-RatatuiComfyTabs) or [GitLab](https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs) repo would absolutely make our day...
 
