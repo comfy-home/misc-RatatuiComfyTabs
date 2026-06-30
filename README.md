@@ -613,8 +613,7 @@ Version 0.1.0 and above is licensed under the Ratatui-Comfy-Tabs Project License
 
 See [LICENSE.md](LICENSE.md).
 
-><sup> **Attribution**: Originally based on 350 lines of code from `tui-tabs v0.0.1` by [jharsono](https://github.com/jharsono), therefore, v0.0.1 inherits its license (MIT).</sup>
-><sup> Lineage and upstream references are recorded in `Cargo.toml` under `[package.metadata]`.</sup>
+><sup> **Attribution**: Originally based on 350 lines of code from `tui-tabs v0.0.1` by [jharsono](https://github.com/jharsono), therefore, v0.0.1 inherits its license (MIT). Lineage and upstream references are recorded in `Cargo.toml` under `[package.metadata]`.</sup>
 
 ## Contribution
 
