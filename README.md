@@ -116,12 +116,13 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 
 </details>
 
+<br><br>
 
 **Enjoying the Tabs project?** Dropping a ⭐ on our [GitHub](https://github.com/comfy-home/misc-RatatuiComfyTabs) or [GitLab](https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs) repo would absolutely make our day...
 
 **Any issues, or suggestions?** Click [HERE](https://github.com/comfy-home/misc-RatatuiComfyTabs/issues) and let us know.
 
-
+---
 ---
 ## GIF Presentation
 
@@ -612,7 +613,7 @@ Version 0.1.0 and above is licensed under the Ratatui-Comfy-Tabs Project License
 
 See [LICENSE.md](LICENSE.md).
 
-><sup> **Attribution**: Originally based on 350 lines of code from `tui-tabs v0.0.1` by jharsono <https://github.com/jharsono>, therefore, v0.0.1 inherits its license (MIT). Lineage and upstream references are recorded in `Cargo.toml` under `[package.metadata]`.</sup>
+><sup> **Attribution**: Originally based on 350 lines of code from `tui-tabs v0.0.1` by [jharsono](https://github.com/jharsono), therefore, v0.0.1 inherits its license (MIT). Lineage and upstream references are recorded in `Cargo.toml` under `[package.metadata]`.</sup>
 
 ## Contribution
 
