@@ -11,6 +11,9 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 </div>
 
 ---
+---
+
+<br>
 
 <details><summary>👀 What's new in v0.5.10 ...</summary>
 
@@ -116,14 +119,14 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 
 </details>
 
-<br><br>
+<br>
 
 **Enjoying the Tabs project?** Dropping a ⭐ on our [GitHub](https://github.com/comfy-home/misc-RatatuiComfyTabs) or [GitLab](https://gitlab.com/comfyhome/crates/ratatui-comfy-tabs) repo would absolutely make our day...
 
 **Any issues, or suggestions?** Click [HERE](https://github.com/comfy-home/misc-RatatuiComfyTabs/issues) and let us know.
 
 ---
----
+
 ## GIF Presentation
 
 <div align="center">
