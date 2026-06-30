@@ -11,8 +11,9 @@ use ratatui_core::symbols;
 
 use crate::DEFAULT_INDICATOR;
 use crate::config::{
-    HorizontalPosition, OverflowPolicy, TabBarAlign, TabBarEnd, TabMargin, TabOrientation,
-    TabPadding, TabReorderPolicy, VerticalPosition,
+    HorizontalPosition, HorizontalPositionConfig, OverflowPolicy, TabBarAlign, TabBarEnd,
+    TabMargin, TabOrientation, TabPadding, TabReorderPolicy, VerticalPosition,
+    VerticalPositionConfig,
 };
 use crate::layout::{
     auto_horizontal_tab_width, auto_vertical_tab_height, compute_viewport, effective_padding,
@@ -83,8 +84,8 @@ pub struct TabNav<'a> {
     pub(crate) tabs: &'a [&'a str],
     pub(crate) selected: usize,
     pub(crate) orientation: TabOrientation,
-    pub(crate) horizontal_position: HorizontalPosition,
-    pub(crate) vertical_position: VerticalPosition,
+    pub(crate) horizontal_position: HorizontalPositionConfig,
+    pub(crate) vertical_position: VerticalPositionConfig,
     pub(crate) tab_bar_align: TabBarAlign,
     pub(crate) margin: Option<TabMargin>,
     pub(crate) padding: Option<TabPadding>,
@@ -118,8 +119,8 @@ impl<'a> TabNav<'a> {
             tabs,
             selected,
             orientation: TabOrientation::Horizontal,
-            horizontal_position: HorizontalPosition::default(),
-            vertical_position: VerticalPosition::default(),
+            horizontal_position: HorizontalPosition::default().into(),
+            vertical_position: VerticalPosition::default().into(),
             tab_bar_align: TabBarAlign::default(),
             margin: None,
             padding: None,
@@ -155,15 +156,19 @@ impl<'a> TabNav<'a> {
 
     /// Horizontal strip above ([`HorizontalPosition::Top`]) or below
     /// ([`HorizontalPosition::Bottom`]) adjacent content. Default: [`HorizontalPosition::Top`].
-    pub fn horizontal_position(mut self, position: HorizontalPosition) -> Self {
-        self.horizontal_position = position;
+    ///
+    /// Pass [`HorizontalPosition::Top.max(n)`](HorizontalPosition::max) to cap visible tabs.
+    pub fn horizontal_position(mut self, position: impl Into<HorizontalPositionConfig>) -> Self {
+        self.horizontal_position = position.into();
         self
     }
 
     /// Vertical rail on the left ([`VerticalPosition::Left`]) or right
     /// ([`VerticalPosition::Right`]) of adjacent content. Default: [`VerticalPosition::Left`].
-    pub fn vertical_position(mut self, position: VerticalPosition) -> Self {
-        self.vertical_position = position;
+    ///
+    /// Pass [`VerticalPosition::Left.max(n)`](VerticalPosition::max) to cap visible tabs.
+    pub fn vertical_position(mut self, position: impl Into<VerticalPositionConfig>) -> Self {
+        self.vertical_position = position.into();
         self
     }
 

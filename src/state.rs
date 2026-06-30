@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use ratatui_core::layout::Rect;
 
-use crate::config::{OverflowPolicy, TabDirection, TabWheelDirection};
-use crate::layout::compute_viewport;
+use crate::config::{TabDirection, TabWheelDirection};
+use crate::layout::{compute_viewport, uses_scroll_window};
 use crate::nav::TabNav;
 use crate::reorder::{TabReorder, can_drag_index, can_drop_at};
 
@@ -42,7 +42,7 @@ pub const SELECTION_FLASH_TOTAL: Duration = Duration::from_millis(600);
 pub struct TabNavState {
     /// Index of the highlighted tab.
     pub selected: usize,
-    /// Index of the first visible tab when [`OverflowPolicy::Scroll`] is active.
+    /// Index of the first visible tab when scroll mode or a position max cap is active.
     pub scroll_offset: usize,
     /// Active drag when reordering tabs with the mouse.
     pub reorder_drag: Option<TabReorderDrag>,
@@ -170,7 +170,7 @@ impl TabNavState {
 
     /// Scrolls the window one tab toward the end when more tabs are hidden.
     pub fn scroll_next(&mut self, nav: &TabNav<'_>, area: Rect) {
-        if nav.overflow != OverflowPolicy::Scroll {
+        if !uses_scroll_window(nav) {
             return;
         }
         let viewport = compute_viewport(nav, area, self.scroll_offset);
@@ -182,7 +182,7 @@ impl TabNavState {
     /// Adjusts [`scroll_offset`](Self::scroll_offset) so [`selected`](Self::selected) is visible,
     /// and scrolls back toward the start when extra space allows earlier tabs to reappear.
     pub fn ensure_selected_visible(&mut self, nav: &TabNav<'_>, area: Rect) {
-        if nav.tabs.is_empty() || nav.overflow != OverflowPolicy::Scroll {
+        if nav.tabs.is_empty() || !uses_scroll_window(nav) {
             return;
         }
 
@@ -256,7 +256,7 @@ impl TabNavState {
         }
 
         self.select_direction(direction.tab_direction(), nav.tabs.len());
-        if nav.overflow == OverflowPolicy::Scroll {
+        if uses_scroll_window(nav) {
             self.ensure_selected_visible(nav, strip_area);
         }
         true
@@ -286,7 +286,7 @@ impl TabNavState {
         }
 
         self.select(index, nav.tabs.len());
-        if nav.overflow == OverflowPolicy::Scroll {
+        if uses_scroll_window(nav) {
             self.ensure_selected_visible(nav, area);
         }
         true

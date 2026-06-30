@@ -80,7 +80,7 @@ pub(crate) fn horizontal_strip_height(nav: &TabNav<'_>) -> u16 {
 
 pub(crate) fn horizontal_strip_origin_y(nav: &TabNav<'_>, area: Rect) -> u16 {
     let strip_height = horizontal_strip_height(nav);
-    match nav.horizontal_position {
+    match nav.horizontal_position.position {
         HorizontalPosition::Top => area.y,
         HorizontalPosition::Bottom => area.bottom().saturating_sub(strip_height),
     }
@@ -88,9 +88,23 @@ pub(crate) fn horizontal_strip_origin_y(nav: &TabNav<'_>, area: Rect) -> u16 {
 
 pub(crate) fn vertical_rail_origin_x(nav: &TabNav<'_>, area: Rect) -> u16 {
     let rail_width = vertical_rail_width(nav).min(area.width);
-    match nav.vertical_position {
+    match nav.vertical_position.position {
         VerticalPosition::Left => area.x,
         VerticalPosition::Right => area.right().saturating_sub(rail_width),
+    }
+}
+
+pub(crate) fn max_visible_tabs(nav: &TabNav<'_>) -> Option<usize> {
+    match nav.orientation {
+        TabOrientation::Horizontal => nav.horizontal_position.max_visible,
+        TabOrientation::Vertical => nav.vertical_position.max_visible,
+    }
+}
+
+pub(crate) fn uses_scroll_window(nav: &TabNav<'_>) -> bool {
+    match nav.overflow {
+        OverflowPolicy::Scroll => true,
+        OverflowPolicy::Truncate => max_visible_tabs(nav).is_some_and(|max| nav.tabs.len() > max),
     }
 }
 
@@ -296,16 +310,22 @@ pub(crate) fn compute_viewport(nav: &TabNav<'_>, area: Rect, scroll_offset: usiz
     };
 
     let total = nav.tabs.len();
+    let max_visible = max_visible_tabs(nav);
     let mut first_index = 0usize;
     let mut clipped_before = false;
     let content_start = flow_start;
 
-    if nav.overflow == OverflowPolicy::Scroll {
+    if uses_scroll_window(nav) {
         first_index = scroll_offset.min(total.saturating_sub(1));
         clipped_before = first_index > 0;
     }
 
     let mut entries = build_forward_entries(nav, pad, first_index, content_start, flow_end);
+    if let Some(max) = max_visible.filter(|&max| max > 0)
+        && entries.len() > max
+    {
+        entries.truncate(max);
+    }
     let mut clipped_after = entries.last().is_some_and(|entry| entry.index + 1 < total);
     let mut end_packed = false;
 
