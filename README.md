@@ -15,6 +15,9 @@ Lightweight, customizable tab navigation for [Ratatui](https://ratatui.rs), orig
 
 <br>
 
+## ✨ What's new
+<sup><sup>[click to expand]</sup></sup>
+
 <details><summary>👀 What's new in v0.5.10 ...</summary>
 
 ### 💥 💥 💥 This Release's Top Picks ...  💥 💥 💥
